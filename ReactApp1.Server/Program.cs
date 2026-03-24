@@ -1,5 +1,6 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using ReactApp1.Server.DTO;
 using ReactApp1.Server.Interfaces;
 using ReactApp1.Server.Repositories;
 using ReactApp1.Server.Services;
@@ -20,6 +21,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddTransient<IPlayerService, PlayerService>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+
+builder.Services.Configure<RttfLinks>(
+    builder.Configuration.GetSection(nameof(RttfLinks)));
 
 #endregion
 

@@ -1,11 +1,17 @@
 ﻿namespace ReactApp1.Server.DTO
 {
-    public class GetPlayersRequest
+    public class PostPlayersRequest
     {
-        public int? Id { get; set; }
+        public int? Month { get; set; } = DateTime.Now.Month;
 
-        public string? Name { get; set; }
+        public int? Year { get; set; } = DateTime.Now.Year;
 
-        public int? Rating { get; set; }
+        public string? Type { get; set; } = "all";
+
+        public int? City { get; set; } = 77;
+
+        public int? RatingMin { get; set; } = 0;
+
+        public int? RatingMax { get; set; } = 1600;
     }
 }

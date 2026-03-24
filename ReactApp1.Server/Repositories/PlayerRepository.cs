@@ -1,6 +1,7 @@
 ﻿using ReactApp1.Server.DTO;
 using ReactApp1.Server.Enums;
 using ReactApp1.Server.Interfaces;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace ReactApp1.Server.Repositories
@@ -8,15 +9,11 @@ namespace ReactApp1.Server.Repositories
     public class PlayerRepository : IPlayerRepository
     {
         private const string _playersPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\players.json";
-        //private readonly string _playersPath;
-
-        //public PlayerRepository(IOption playersPath)
-        //{
-        //    _playersPath = playersPath;
-        //}
+        private const string _playersAfterTournamentsPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\playersAfterTournaments.json";
 
         public async Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request)
         {
+            // Когда будет БД сделать отложенное выполнение
             var json = File.ReadAllText(_playersPath);
             var players = JsonSerializer.Deserialize<List<PlayerResponse>>(json);
 
@@ -54,43 +51,18 @@ namespace ReactApp1.Server.Repositories
         }
 
 
-        //Когда будет БД сделать отложенное выполнение по типу такого:
-        //public async Task<IEnumerable<CurrentIncome>> GetByDateAsync(GetCurrentIncomeRequest request)
-        //{
-        //    await using var dbContext = _dbContextFactory.Create();
+        public async Task<(MethodResult, string)> SavePlayersAfterTournaments(List<PlayerAfterTournament> playersAfterTournaments)
+        {
+            var options = new JsonSerializerOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            };
 
-        //    var query = dbContext.CurrentIncomes.AsQueryable();
+            var json = JsonSerializer.Serialize(playersAfterTournaments, options);
+            await File.WriteAllTextAsync(_playersAfterTournamentsPath, json);
 
-        //    if (request.IsActive.HasValue)
-        //    {
-        //        query = query.Where(x => x.IsActive == request.IsActive.Value);
-        //    }
-        //    else
-        //    {
-        //        query = query.Where(x => x.IsActive);
-        //    }
-
-        //    if (request.IcId.HasValue)
-        //    {
-        //        query = query.Where(x => x.IcId == request.IcId.Value);
-        //    }
-
-        //    if (request.StartDate.HasValue)
-        //    {
-        //        var start = request.StartDate.Value.Date;
-        //        var end = request.EndDate?.Date.AddDays(1) ?? start.AddDays(1);
-
-        //        query = query.Where(x =>
-        //            x.IncomeDate >= start &&
-        //            x.IncomeDate < end);
-        //    }
-
-        //    if (request.IsConsiderLimit.HasValue)
-        //    {
-        //        query = query.Where(x => x.IsConsiderLimit == request.IsConsiderLimit.Value);
-        //    }
-
-        //    return await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
-        //}
+            return (MethodResult.Success, "");
+        }
     }
 }
