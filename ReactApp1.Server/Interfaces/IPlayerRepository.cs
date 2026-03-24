@@ -6,6 +6,7 @@ namespace ReactApp1.Server.Interfaces
 {
     public interface IPlayerRepository
     {
-        Task<(MethodResult, string, PlayerResponse)> GetPlayer(GetPlayerRequest request);
+        Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request);
+        Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id);
     }
 }

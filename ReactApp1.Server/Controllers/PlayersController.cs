@@ -16,16 +16,19 @@ namespace ReactApp1.Server.Controllers
         }
 
         [HttpGet]
-        public IEnumerable<string> Get()
+        public async Task<IEnumerable<PlayerResponse>> GetMany([FromQuery] GetPlayersRequest request)
         {
-            return new string[] { "value1", "value2" };
+            var (result, message, response) = await _playersService.GetPlayers(request);
+
+            return response;
         }
 
-        [HttpGet("{id}")]
-        public async Task<string> Get([FromQuery] GetPlayerRequest request) // int id, string name, int rating
+        [HttpGet("{id:int:min(1)}")]
+        public async Task<PlayerResponse> Get(int id)
         {
-            var (result, message, response) = await _playersService.GetPlayer(request);
-            return "value";
+            var (result, message, response) = await _playersService.GetPlayer(id);
+
+            return response;
         }
 
         [HttpPost]

@@ -13,11 +13,16 @@ namespace ReactApp1.Server.Services
             _playerRepository = playerRepository;
         }
 
-        public async Task<(MethodResult, string, PlayerResponse)> GetPlayer(GetPlayerRequest request)
+        public async Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id)
         {
-            // TODO: сделать парсер сайта по типу https://rttf.ru/tournaments/216872
+            var (result, message, response) = await _playerRepository.GetPlayer(id);
 
-            var (result, message, response) = await _playerRepository.GetPlayer(request);
+            return (result, message, response);
+        }
+
+        public async Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request)
+        {
+            var (result, message, response) = await _playerRepository.GetPlayers(request);
 
             return (result, message, response);
         }
