@@ -4,6 +4,9 @@ namespace ReactApp1.Server.DTO
 {
     public class PlayerAfterTournament
     {
+        [JsonPropertyName("link")]
+        public required string Link { get; set; }
+
         [JsonPropertyName("name")]
         public required string Name { get; set; }
 

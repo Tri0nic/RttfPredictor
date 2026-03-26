@@ -16,6 +16,8 @@ builder.Services.AddSwaggerGen();
 
 # region MyServices
 
+builder.Services.AddLogging();
+
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 

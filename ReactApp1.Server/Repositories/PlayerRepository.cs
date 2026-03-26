@@ -8,8 +8,9 @@ namespace ReactApp1.Server.Repositories
 {
     public class PlayerRepository : IPlayerRepository
     {
-        private const string _playersPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\players.json";
-        private const string _playersAfterTournamentsPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\playersAfterTournaments.json";
+        private readonly string _playersPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\players.json";
+        private readonly string _playersAfterTournamentsPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\playersAfterTournaments.json";
+        private readonly string _tournamentPlayersStats = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\tournamentPlayersStats.json";
 
         public async Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request)
         {
@@ -50,7 +51,6 @@ namespace ReactApp1.Server.Repositories
             return (MethodResult.Success, null, player);
         }
 
-
         public async Task<(MethodResult, string)> SavePlayersAfterTournaments(List<PlayerAfterTournament> playersAfterTournaments)
         {
             var options = new JsonSerializerOptions
@@ -61,6 +61,20 @@ namespace ReactApp1.Server.Repositories
 
             var json = JsonSerializer.Serialize(playersAfterTournaments, options);
             await File.WriteAllTextAsync(_playersAfterTournamentsPath, json);
+
+            return (MethodResult.Success, "");
+        }
+
+        public async Task<(MethodResult, string)> SaveTournamentPlayersStats(List<PlayerStats> tournamentPlayersStats)
+        {
+            var options = new JsonSerializerOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                WriteIndented = true
+            };
+
+            var json = JsonSerializer.Serialize(tournamentPlayersStats, options);
+            await File.WriteAllTextAsync(_tournamentPlayersStats, json);
 
             return (MethodResult.Success, "");
         }

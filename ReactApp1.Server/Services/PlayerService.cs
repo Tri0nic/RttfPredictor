@@ -10,11 +10,13 @@ namespace ReactApp1.Server.Services
     {
         private readonly IPlayerRepository _playerRepository;
         private readonly RttfLinks _rttfLinks;
+        private readonly ILogger<PlayerService> _logger;
 
-        public PlayerService(IPlayerRepository playerRepository, IOptions<RttfLinks> rttfLinks)
+        public PlayerService(IPlayerRepository playerRepository, IOptions<RttfLinks> rttfLinks, ILogger<PlayerService> logger)
         {
             _playerRepository = playerRepository;
             _rttfLinks = rttfLinks.Value;
+            _logger = logger;
         }
 
         public async Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id)
@@ -31,7 +33,7 @@ namespace ReactApp1.Server.Services
             return (result, message, response);
         }
 
-        public async Task<(MethodResult, string, List<PlayerResponse>)> PostPlayers(PostPlayersRequest request)
+        public async Task<(MethodResult, string, int)> PostPlayers(PostPlayersRequest request)
         {
             var (resultParseTournaments, messageParseTournaments, tournamentLinks) = await ParseTournaments(request);
 
@@ -40,7 +42,7 @@ namespace ReactApp1.Server.Services
 
             var (result, message) = await _playerRepository.SavePlayersAfterTournaments(playersAfterTournaments);
 
-            return (MethodResult.Success, "", new List<PlayerResponse>());
+            return (MethodResult.Success, "", playersAfterTournaments.Count);
         }
 
 
@@ -106,7 +108,7 @@ namespace ReactApp1.Server.Services
             var web = new HtmlWeb();
             var baseUri = new Uri(_rttfLinks.CalendarLink);
             var baseUrl = $"{baseUri.Scheme}://{baseUri.Host}/";
-            var result = new List<PlayerAfterTournament>();
+            var players = new List<PlayerAfterTournament>();
 
             foreach (var link in tournamentLinks)
             {
@@ -120,8 +122,9 @@ namespace ReactApp1.Server.Services
                 foreach (var row in rows)
                 {
                     var cells = row.SelectNodes("td");
-                    if (cells == null || cells.Count < 8) continue;//
+                    if (cells == null) continue;
 
+                    var playerLink = cells[1].SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "";
                     var rawName = cells[1].SelectSingleNode(".//a")?.InnerText.Trim() ?? "";
                     var nickMatch = System.Text.RegularExpressions.Regex.Match(rawName, @"\(([^)]+)\)");
                     var name = nickMatch.Success ? nickMatch.Groups[1].Value : rawName;
@@ -137,8 +140,9 @@ namespace ReactApp1.Server.Services
                     var (games, gamesWon, gamesLost) = ParseStats(cells[6]);
                     var (sets, setsWon, setsLost) = ParseStats(cells[7]);
 
-                    result.Add(new PlayerAfterTournament
+                    players.Add(new PlayerAfterTournament
                     {
+                        Link = playerLink,
                         Name = name,
                         City = city,
                         RatingBefore = ratingBefore,
@@ -154,7 +158,136 @@ namespace ReactApp1.Server.Services
                 }
             }
 
-            return (MethodResult.Success, "", result);
+            return (MethodResult.Success, "", players);
+        }
+
+        public async Task<(MethodResult, string, List<PlayerStats>)> PostTournamentPlayersStats(string tournamentLink)
+        {
+            var(resultParsed, messageParsed, responseParsed) = await ParseTournamentPlayersStats(tournamentLink);
+
+            var(resultSave, messageSave) = await _playerRepository.SaveTournamentPlayersStats(responseParsed);
+
+            return (MethodResult.Success, "", responseParsed);
+        }
+
+        private async Task<(MethodResult, string, List<PlayerStats>)> ParseTournamentPlayersStats(string tournamentLink)
+        {
+            var web = new HtmlWeb();
+            var baseUri = new Uri(_rttfLinks.CalendarLink);
+            var baseUrl = $"{baseUri.Scheme}://{baseUri.Host}/";
+            var playersStats = new List<PlayerStats>();
+
+            var tournamentDoc = web.Load(baseUrl + "tournaments/" + tournamentLink);
+            var playerNodes = tournamentDoc.DocumentNode.SelectNodes(
+                "//table[contains(@class, 'tour-players')]//tbody//tr//a[contains(@href, 'players/')]"
+            );
+
+            if (playerNodes == null) return (MethodResult.Success, "", playersStats);
+
+            var playerEntries = playerNodes
+                .Select(n => (Link: n.GetAttributeValue("href", ""), (string)null))
+                .Where(p => !string.IsNullOrEmpty(p.Link))
+                .DistinctBy(p => p.Link)
+                .ToList();
+
+            foreach (var (playerLink, _) in playerEntries)
+            {
+                var doc = web.Load(baseUrl + playerLink);
+
+                var h3Node = doc.DocumentNode.SelectSingleNode(
+                    "//section[@class='player-info']/h3"
+                );
+                var nick = h3Node?.ChildNodes
+                    .FirstOrDefault(n => n.NodeType == HtmlAgilityPack.HtmlNodeType.Text
+                                      && !string.IsNullOrWhiteSpace(n.InnerText))
+                    ?.InnerText.Trim().Trim('"') ?? "";
+
+                var rating = 0;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (i > 0)
+                    {
+                        _logger.LogWarning($"Не удалось спарсить рейтинг пользователя {nick}. \nПовторная попытка...");
+                        await Task.Delay(300);
+                    }
+
+                    var ratingMatch = System.Text.RegularExpressions.Regex.Match(
+                        h3Node?.SelectSingleNode("dfn")?.InnerText ?? "", @"\d+"
+                    );
+                    int.TryParse(ratingMatch.Value, out rating);
+
+                    if (rating != 0)
+                    {
+                        _logger.LogInformation($"Рейтинг пользователя {nick} был спаршен успешно.");
+                        break;
+                    }
+                        
+                }
+
+                var infoParagraphs = doc.DocumentNode.SelectNodes(
+                    "//section[@class='player-info']/p"
+                );
+
+                var yearParagraph = infoParagraphs?.FirstOrDefault(p => p.InnerText.Contains("рождения"));
+                var yearMatch = System.Text.RegularExpressions.Regex.Match(
+                    yearParagraph?.InnerText ?? "", @"(\d{4})"
+                );
+                int.TryParse(yearMatch.Groups[1].Value, out var year);
+
+                var cityRaw = infoParagraphs?.FirstOrDefault(p => p.InnerText.Contains("город"))
+                    ?.SelectSingleNode(".//strong")?.InnerText.Trim();
+                var city = System.Text.RegularExpressions.Regex.Replace(
+                    cityRaw ?? "", @"\s*\([^)]*\)", ""
+                ).Trim();
+
+                var arm = infoParagraphs?.FirstOrDefault(p => p.InnerText.Contains("рука"))
+                    ?.SelectSingleNode(".//strong")?.InnerText.Trim();
+
+                var statsRows = doc.DocumentNode.SelectNodes(
+                    "//section[contains(@class,'player-stats')]/table//tr"
+                );
+
+                int tournamentsPlayed = 0, wonGames = 0, lostGames = 0;
+
+                if (statsRows != null)
+                {
+                    foreach (var row in statsRows)
+                    {
+                        var cells = row.SelectNodes("td");
+                        if (cells == null || cells.Count < 2) continue;
+
+                        for (int i = 0; i + 1 < cells.Count; i += 2)
+                        {
+                            var label = cells[i].InnerText.Trim();
+                            var value = cells[i + 1].InnerText.Replace("'", "").Trim();
+
+                            if (label.Contains("Сыграно турниров") && tournamentsPlayed == 0)
+                                int.TryParse(value, out tournamentsPlayed);
+                            else if (label.Contains("Игры") && wonGames == 0 && lostGames == 0)
+                            {
+                                var m = System.Text.RegularExpressions.Regex.Match(value, @"\((\d+) - (\d+)\)");
+                                int.TryParse(m.Groups[1].Value, out wonGames);
+                                int.TryParse(m.Groups[2].Value, out lostGames);
+                            }
+                        }
+                    }
+                }
+
+                playersStats.Add(new PlayerStats
+                {
+                    Link = playerLink,
+                    Name = nick,
+                    City = string.IsNullOrEmpty(city) ? null : city,
+                    Arm = arm,
+                    Year = year == 0 ? null : year,
+                    Rating = rating,
+                    TournamentsPlayed = tournamentsPlayed,
+                    WonGames = wonGames,
+                    LostGames = lostGames
+                });
+            }
+
+            return (MethodResult.Success, "", playersStats);
         }
 
         private static (int total, int won, int lost) ParseStats(HtmlNode cell)

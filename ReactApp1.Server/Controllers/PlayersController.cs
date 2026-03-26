@@ -36,7 +36,15 @@ namespace ReactApp1.Server.Controllers
         {
             var (result, message, response) = await _playersService.PostPlayers(request);
 
-            return Ok();
+            return Ok($"Было обработано {response} игроков");
+        }
+
+        [HttpPost("PostTournamentPlayersStats")]
+        public async Task<IActionResult> Post([FromBody] string tournamentLink)
+        {
+            var (result, message, response) = await _playersService.PostTournamentPlayersStats(tournamentLink);
+
+            return Ok($"Было обработано {response.Count} игроков");
         }
 
         //[HttpPut("{id}")]

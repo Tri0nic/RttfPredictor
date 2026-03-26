@@ -9,5 +9,6 @@ namespace ReactApp1.Server.Interfaces
         Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request);
         Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id);
         Task<(MethodResult, string)> SavePlayersAfterTournaments(List<PlayerAfterTournament> playersAfterTournaments);
+        Task<(MethodResult, string)> SaveTournamentPlayersStats(List<PlayerStats> playersAfterTournaments);
     }
 }
