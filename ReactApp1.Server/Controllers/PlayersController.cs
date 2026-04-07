@@ -44,7 +44,7 @@ namespace ReactApp1.Server.Controllers
         {
             var (result, message, response) = await _playersService.PostTournamentPlayersStats(tournamentLink);
 
-            return Ok($"Было обработано {response.Count} игроков");
+            return Ok($"Для турнира {tournamentLink} было обработано {response.Count} игроков");
         }
 
         //[HttpPut("{id}")]
