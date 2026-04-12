@@ -19,16 +19,9 @@ namespace ReactApp1.Server.Services
             _logger = logger;
         }
 
-        public async Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id)
+        public async Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayers()
         {
-            var (result, message, response) = await _playerRepository.GetPlayer(id);
-
-            return (result, message, response);
-        }
-
-        public async Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request)
-        {
-            var (result, message, response) = await _playerRepository.GetPlayers(request);
+            var (result, message, response) = await _playerRepository.GetTournamentPlayersStats();
 
             return (result, message, response);
         }
@@ -40,7 +33,7 @@ namespace ReactApp1.Server.Services
             var (resultGetPlayersFromTournaments, messageGetPlayersFromTournaments, playersAfterTournaments) = await GetPlayersFromTournaments(tournamentLinks);
 
 
-            var (result, message) = await _playerRepository.SavePlayersAfterTournaments(playersAfterTournaments);
+            //var (result, message) = await _playerRepository.SavePlayersAfterTournaments(playersAfterTournaments);
 
             return (MethodResult.Success, "", playersAfterTournaments.Count);
         }
@@ -423,9 +416,8 @@ namespace ReactApp1.Server.Services
         {
             if (tournamentStatus == TournamentStatus.Ended)
             {
-                // Сделать метод:
-                // var (resultSave, messageSave) = await _playerRepository.SaveEndedTournamentPlayersStats(responseParsed); 
-                var messageSave = "null";
+                var (resultSave, messageSave) = await _playerRepository.SaveTournamentResults(responseParsed); 
+
                 return (MethodResult.Success, messageSave);
             }
             else if (tournamentStatus == TournamentStatus.Live)
@@ -434,8 +426,7 @@ namespace ReactApp1.Server.Services
             }
             else if (tournamentStatus == TournamentStatus.NotStarted)
             {
-                // Переименовать в SaveNotStartedTournamentPlayersStats
-                var (resultSave, messageSave) = await _playerRepository.SaveTournamentPlayersStats(responseParsed); 
+                var (resultSave, messageSave) = await _playerRepository.SaveNotStartedTournamentPlayersStats(responseParsed); 
 
                 return (MethodResult.Success, messageSave);
             }

@@ -6,9 +6,8 @@ namespace ReactApp1.Server.Interfaces
 {
     public interface IPlayerRepository
     {
-        Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request);
-        Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id);
-        Task<(MethodResult, string)> SavePlayersAfterTournaments(List<PlayerAfterTournament> playersAfterTournaments);
-        Task<(MethodResult, string)> SaveTournamentPlayersStats(List<PlayerStats> playersAfterTournaments);
+        Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayersStats();
+        Task<(MethodResult, string)> SaveNotStartedTournamentPlayersStats(List<PlayerStats> playersAfterTournaments);
+        Task<(MethodResult, string)> SaveTournamentResults(List<PlayerStats> playersAfterTournaments);
     }
 }

@@ -9,74 +9,166 @@ namespace ReactApp1.Server.Repositories
     public class PlayerRepository : IPlayerRepository
     {
         private readonly string _playersPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\players.json";
-        private readonly string _playersAfterTournamentsPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\playersAfterTournaments.json";
         private readonly string _tournamentPlayersStats = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\tournamentPlayersStats.json";
 
-        public async Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request)
+        public async Task<(MethodResult, string, List<PlayerStats>?)> GetTournamentPlayersStats()
         {
-            // Когда будет БД сделать отложенное выполнение
-            var json = File.ReadAllText(_playersPath);
-            var players = JsonSerializer.Deserialize<List<PlayerResponse>>(json);
-
-            if (request.Id.HasValue)
+            if (!File.Exists(_tournamentPlayersStats))
             {
-                players = players.Where(x => x.Id == request.Id).ToList();
+                return (MethodResult.Success, "", new List<PlayerStats>());
             }
 
-            if (request.Name != null)
+            var json = await File.ReadAllTextAsync(_tournamentPlayersStats);
+
+            if (string.IsNullOrWhiteSpace(json))
             {
-                players = players.Where(x => x.Name.Contains(request.Name)).ToList();
+                return (MethodResult.Success, "", new List<PlayerStats>());
             }
 
-            if (request.Rating.HasValue)
-            {
-                players = players.Where(x => x.Rating == request.Rating).ToList();
-            }
-
-            return (MethodResult.Success, null, players);
-        }
-
-        public async Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id)
-        {
-            var json = File.ReadAllText(_playersPath);
-            var players = JsonSerializer.Deserialize<List<PlayerResponse>>(json);
-
-            var player = players.Where(x => x.Id == id).FirstOrDefault();
-
-            if (player == null)
-            {
-                return (MethodResult.NotFound, "Игрок не был найден", null);
-            }
-
-            return (MethodResult.Success, null, player);
-        }
-
-        public async Task<(MethodResult, string)> SavePlayersAfterTournaments(List<PlayerAfterTournament> playersAfterTournaments)
-        {
             var options = new JsonSerializerOptions
             {
-                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                WriteIndented = true
+                PropertyNameCaseInsensitive = true
             };
 
-            var json = JsonSerializer.Serialize(playersAfterTournaments, options);
-            await File.WriteAllTextAsync(_playersAfterTournamentsPath, json);
+            var data = JsonSerializer.Deserialize<List<PlayerStats>>(json, options);
+            if (data == null)
+            {
+                return (MethodResult.InternalError, "Не удалось десериализовать данные", null);
+            }
 
-            return (MethodResult.Success, "");
+            return (MethodResult.Success, "", data);
         }
 
-        public async Task<(MethodResult, string)> SaveTournamentPlayersStats(List<PlayerStats> tournamentPlayersStats)
+        public async Task<(MethodResult, string)> SaveNotStartedTournamentPlayersStats(List<PlayerStats> incoming)
         {
-            var options = new JsonSerializerOptions
+            try
             {
-                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                WriteIndented = true
-            };
+                // используем твой существующий метод как есть
+                var (getResult, getError, existing) = await GetTournamentPlayersStats();
 
-            var json = JsonSerializer.Serialize(tournamentPlayersStats, options);
-            await File.WriteAllTextAsync(_tournamentPlayersStats, json);
+                List<PlayerStats> currentData;
 
-            return (MethodResult.Success, "");
+                if (getResult == MethodResult.Success && existing != null)
+                {
+                    currentData = existing;
+                }
+                else
+                {
+                    // если файл не прочитался — считаем, что данных пока нет
+                    currentData = new List<PlayerStats>();
+                }
+
+                var dict = currentData.ToDictionary(
+                    x => (x.PlayerId, x.TournamentId),
+                    x => x
+                );
+
+                foreach (var item in incoming)
+                {
+                    var key = (item.PlayerId, item.TournamentId);
+
+                    if (dict.TryGetValue(key, out var existingItem))
+                    {
+                        UpdateAllFields(existingItem, item);
+                    }
+                    else
+                    {
+                        dict[key] = item;
+                    }
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                };
+
+                var json = JsonSerializer.Serialize(dict.Values.ToList(), options);
+                await File.WriteAllTextAsync(_tournamentPlayersStats, json);
+
+                return (MethodResult.Success, "");
+            }
+            catch (Exception ex)
+            {
+                return (MethodResult.InternalError, $"Ошибка сохранения: {ex.Message}");
+            }
+        }
+
+        public async Task<(MethodResult, string)> SaveTournamentResults(List<PlayerStats> incoming)
+        {
+            try
+            {
+                // используем твой существующий метод как есть
+                var (getResult, getError, existing) = await GetTournamentPlayersStats();
+
+                List<PlayerStats> currentData;
+
+                if (getResult == MethodResult.Success && existing != null)
+                {
+                    currentData = existing;
+                }
+                else
+                {
+                    // если файл не прочитался — считаем, что данных пока нет
+                    currentData = new List<PlayerStats>();
+                }
+
+                var dict = currentData.ToDictionary(
+                    x => (x.PlayerId, x.TournamentId),
+                    x => x
+                );
+
+                foreach (var item in incoming)
+                {
+                    var key = (item.PlayerId, item.TournamentId);
+
+                    if (dict.TryGetValue(key, out var existingItem))
+                    {
+                        UpdatePositionOnly(existingItem, item);
+                    }
+                    else
+                    {
+                        dict[key] = item;
+                    }
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                    WriteIndented = true
+                };
+
+                var json = JsonSerializer.Serialize(dict.Values.ToList(), options);
+                await File.WriteAllTextAsync(_tournamentPlayersStats, json);
+
+                return (MethodResult.Success, "");
+            }
+            catch (Exception ex)
+            {
+                return (MethodResult.InternalError, $"Ошибка сохранения: {ex.Message}");
+            }
+        }
+
+        private static void UpdateAllFields(PlayerStats target, PlayerStats source)
+        {
+            var props = typeof(PlayerStats).GetProperties();
+
+            foreach (var prop in props)
+            {
+                if (!prop.CanRead || !prop.CanWrite)
+                    continue;
+
+                if (prop.Name is nameof(PlayerStats.PlayerId) or nameof(PlayerStats.TournamentId))
+                    continue;
+
+                var value = prop.GetValue(source);
+                prop.SetValue(target, value);
+            }
+        }
+
+        private static void UpdatePositionOnly(PlayerStats target, PlayerStats source)
+        {
+            target.Position = source.Position;
         }
     }
 }

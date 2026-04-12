@@ -16,35 +16,30 @@ namespace ReactApp1.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<IEnumerable<PlayerResponse>> GetMany([FromQuery] GetPlayersRequest request)
+        public async Task<IEnumerable<PlayerStats>> GetTournamentPlayers()
         {
-            var (result, message, response) = await _playersService.GetPlayers(request);
+            var (result, message, response) = await _playersService.GetTournamentPlayers();
 
             return response;
-        }
-
-        [HttpGet("{id:int:min(1)}")]
-        public async Task<PlayerResponse> Get(int id)
-        {
-            var (result, message, response) = await _playersService.GetPlayer(id);
-
-            return response;
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] PostPlayersRequest request)
-        {
-            var (result, message, response) = await _playersService.PostPlayers(request);
-
-            return Ok($"Было обработано {response} игроков");
         }
 
         [HttpPost("PostTournamentPlayersStats")]
-        public async Task<IActionResult> Post([FromBody] string tournamentLink)
+        public async Task<IActionResult> PostTournamentPlayersStats([FromBody] string tournamentLink)
         {
             var (result, message, response) = await _playersService.PostTournamentPlayersStats(tournamentLink);
 
             return Ok($"Для турнира {tournamentLink} было обработано {response.Count} игроков");
+        }
+
+
+        #region Methods needs rework
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] PostPlayersRequest request)
+        {
+            // Парсит турниры по календарю - в будущем нужно будет доработать, пока что не использовать
+            var (result, message, response) = await _playersService.PostPlayers(request);
+
+            return Ok($"Было обработано {response} игроков");
         }
 
         //[HttpPut("{id}")]
@@ -56,5 +51,6 @@ namespace ReactApp1.Server.Controllers
         //public void Delete(int id)
         //{
         //}
+        #endregion
     }
 }

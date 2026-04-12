@@ -6,8 +6,7 @@ namespace ReactApp1.Server.Interfaces
 {
     public interface IPlayerService
     {
-        Task<(MethodResult, string, List<PlayerResponse>)> GetPlayers(GetPlayersRequest request);
-        Task<(MethodResult, string, PlayerResponse)> GetPlayer(int id);
+        Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayers();
         Task<(MethodResult, string, int)> PostPlayers(PostPlayersRequest request);
         Task<(MethodResult, string, List<PlayerStats>)> PostTournamentPlayersStats(string tournamentLink);
     }
