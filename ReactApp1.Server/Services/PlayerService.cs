@@ -192,9 +192,13 @@ namespace ReactApp1.Server.Services
                 return (resultParsed, messageParsed, null);
             }
 
-            var (resultSave, messageSave) = await _playerRepository.SaveTournamentPlayersStats(responseParsed);
+            var (resultSave, messageSave) = await SaveTournamentPlayersStats(responseParsed, tournamentStatus);
+            if (resultSave != MethodResult.Success)
+            {
+                return (resultSave, messageSave, null);
+            }
 
-            return (MethodResult.Success, "", responseParsed);
+            return (MethodResult.Success, messageSave, responseParsed);
         }
 
         private async Task<(MethodResult, string, TournamentStatus?)> GetTournamentStatus(string tournamentLink)
@@ -234,16 +238,19 @@ namespace ReactApp1.Server.Services
             }
             else if (tournamentStatus == TournamentStatus.Live)
             {
-//TODO                // Ничего не делаем если турнир сейчас идет (только логи добавить)
-                return (MethodResult.NotFound, "Временная заклепка2", null);
+                _logger.LogInformation("Турнир в процессе");
+                return (MethodResult.Success, "Турнир в процессе", null);
             }
             else if (tournamentStatus == TournamentStatus.NotStarted)
             {
-//TODO            // Обновляем игроков в БД, которые участвуют в турнире:
+                // Обновляем игроков в БД, которые участвуют в турнире:
                 //      если игрок уже есть в БД, тогда обновляем его данные
                 //      если игрока в БД нет, то добавляем его
                 //      если игрок исчез, то удаляем его из БД
-                return (MethodResult.NotFound, "Временная заклепка1", null);
+
+                var (resultTournamentNotStartedStats, messageTournamentNotStartedStats, tournamentNotStartedStats) = await ParseNotStartedTournamentPlayersStats(tournamentLink);
+
+                return (resultTournamentNotStartedStats, messageTournamentNotStartedStats, tournamentNotStartedStats);
             }
             else
             {
@@ -263,6 +270,44 @@ namespace ReactApp1.Server.Services
 
             var playerNodes = tournamentDoc.DocumentNode.SelectNodes(
                 "//table[contains(@class, 'tour-players')]//tbody//tr//a[contains(@href, 'players/')]"
+            );
+
+            if (playerNodes == null) return (MethodResult.Success, "", playersStats);
+
+            var playerEntries = playerNodes
+                .Select(n => (Link: n.GetAttributeValue("href", ""), (string)null))
+                .Where(p => !string.IsNullOrEmpty(p.Link))
+                .DistinctBy(p => p.Link)
+                .ToList();
+
+            var position = 1;
+            foreach (var (playerLink, _) in playerEntries)
+            {
+                playersStats.Add(new PlayerStats
+                {
+                    PlayerId = playerLink,
+                    TournamentId = tournamentLink,
+                    Position = position
+                });
+
+                position++;
+            }
+
+            return (MethodResult.Success, "", playersStats);
+        }
+
+        private async Task<(MethodResult, string, List<PlayerStats>)> ParseNotStartedTournamentPlayersStats(string tournamentLink)
+        {
+            var web = new HtmlWeb();
+            var baseUri = new Uri(_rttfLinks.CalendarLink);
+            var baseUrl = $"{baseUri.Scheme}://{baseUri.Host}/";
+
+            var tournamentDoc = web.Load(baseUrl + "tournaments/" + tournamentLink);
+
+            var playersStats = new List<PlayerStats>();
+
+            var playerNodes = tournamentDoc.DocumentNode.SelectNodes(
+                "//table[@class='tablesort']//tbody//tr//a[contains(@href, 'players/')]"
             );
 
             if (playerNodes == null) return (MethodResult.Success, "", playersStats);
@@ -358,7 +403,8 @@ namespace ReactApp1.Server.Services
 
                 playersStats.Add(new PlayerStats
                 {
-                    Link = playerLink,
+                    PlayerId = playerLink,
+                    TournamentId = tournamentLink,
                     Name = nick,
                     City = string.IsNullOrEmpty(city) ? null : city,
                     Arm = arm,
@@ -371,6 +417,32 @@ namespace ReactApp1.Server.Services
             }
 
             return (MethodResult.Success, "", playersStats);
+        }
+
+        private async Task<(MethodResult, string)> SaveTournamentPlayersStats(List<PlayerStats> responseParsed, TournamentStatus? tournamentStatus)
+        {
+            if (tournamentStatus == TournamentStatus.Ended)
+            {
+                // Сделать метод:
+                // var (resultSave, messageSave) = await _playerRepository.SaveEndedTournamentPlayersStats(responseParsed); 
+                var messageSave = "null";
+                return (MethodResult.Success, messageSave);
+            }
+            else if (tournamentStatus == TournamentStatus.Live)
+            {
+                return (MethodResult.Success, "Турнир идет - сохранение не нужно");
+            }
+            else if (tournamentStatus == TournamentStatus.NotStarted)
+            {
+                // Переименовать в SaveNotStartedTournamentPlayersStats
+                var (resultSave, messageSave) = await _playerRepository.SaveTournamentPlayersStats(responseParsed); 
+
+                return (MethodResult.Success, messageSave);
+            }
+            else
+            {
+                return (MethodResult.NotFound, "Не удалось сохранить данные игроков турнира");
+            }
         }
     }
 }
