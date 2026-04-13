@@ -1,5 +1,7 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using ReactApp1.Server.Data;
 using ReactApp1.Server.DTO;
 using ReactApp1.Server.Interfaces;
 using ReactApp1.Server.Repositories;
@@ -14,7 +16,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-# region MyServices
+#region MyServices
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresDatabaseOptions")));
 
 builder.Services.AddLogging();
 
