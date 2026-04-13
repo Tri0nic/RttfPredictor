@@ -1,30 +1,29 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ReactApp1.Server.Data;
 using ReactApp1.Server.DTO;
+using ReactApp1.Server.Entities;
 using ReactApp1.Server.Enums;
 using ReactApp1.Server.Interfaces;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 
 namespace ReactApp1.Server.Repositories
 {
     public class PlayerRepository : IPlayerRepository
     {
-        private readonly string _playersPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\players.json";
-        private readonly string _tournamentPlayersStats = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\tournamentPlayersStats.json";
+        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+        private readonly ILogger<PlayerRepository> _logger;
 
-        private readonly AppDbContext _dbContext;
-
-        public PlayerRepository(AppDbContext dbContext) 
+        public PlayerRepository(IDbContextFactory<AppDbContext> dbContextFactory, ILogger<PlayerRepository> logger)
         {
-            _dbContext = dbContext;
+            _dbContextFactory = dbContextFactory;
+            _logger = logger;
         }
 
         public async Task<(MethodResult, string, List<PlayerStats>?)> GetTournamentPlayersStats()
         {
-            var entities = await _dbContext.PlayerStats.ToListAsync();
+            using var context = _dbContextFactory.CreateDbContext();
 
-            // TODO: вынести через AutoMapper
+            var entities = await context.PlayerStats.ToListAsync();
+
             var data = entities.Select(e => new PlayerStats()
             {
                 PlayerId = e.PlayerId,
@@ -45,114 +44,89 @@ namespace ReactApp1.Server.Repositories
 
         public async Task<(MethodResult, string)> SaveNotStartedTournamentPlayersStats(List<PlayerStats> incoming)
         {
-            try
+            using var context = _dbContextFactory.CreateDbContext();
+
+            var playerIds = incoming.Select(i => i.PlayerId).ToList();
+
+            var existing = await context.PlayerStats
+                .Where(e => playerIds.Contains(e.PlayerId) && e.TournamentId == incoming.First().TournamentId)
+                .ToListAsync();
+
+            var existingDict = existing.ToDictionary(e => (e.PlayerId, e.TournamentId));
+
+            foreach (var item in incoming)
             {
-                // используем твой существующий метод как есть
-                var (getResult, getError, existing) = await GetTournamentPlayersStats();
-
-                List<PlayerStats> currentData;
-
-                if (getResult == MethodResult.Success && existing != null)
+                if (existingDict.TryGetValue((item.PlayerId, item.TournamentId), out var entity))
                 {
-                    currentData = existing;
+                    entity.Name = item.Name;
+                    entity.City = item.City;
+                    entity.Year = item.Year;
+                    entity.Arm = item.Arm;
+                    entity.Rating = item.Rating;
+                    entity.TournamentsPlayed = item.TournamentsPlayed;
+                    entity.WonGames = item.WonGames;
+                    entity.LostGames = item.LostGames;
+                    entity.UpdatedAt = DateTime.UtcNow;
+
+                    _logger.LogInformation($"Данные игрока {item.Name} были обновлены в БД");
                 }
                 else
                 {
-                    // если файл не прочитался — считаем, что данных пока нет
-                    currentData = new List<PlayerStats>();
-                }
-
-                var dict = currentData.ToDictionary(
-                    x => (x.PlayerId, x.TournamentId),
-                    x => x
-                );
-
-                foreach (var item in incoming)
-                {
-                    var key = (item.PlayerId, item.TournamentId);
-
-                    if (dict.TryGetValue(key, out var existingItem))
+                    context.PlayerStats.Add(new PlayerStatsEntity
                     {
-                        UpdateAllFields(existingItem, item);
-                    }
-                    else
-                    {
-                        dict[key] = item;
-                    }
+                        PlayerId = item.PlayerId,
+                        TournamentId = item.TournamentId,
+                        Name = item.Name,
+                        City = item.City,
+                        Year = item.Year,
+                        Arm = item.Arm,
+                        Rating = item.Rating,
+                        TournamentsPlayed = item.TournamentsPlayed,
+                        WonGames = item.WonGames,
+                        LostGames = item.LostGames,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                    _logger.LogInformation($"Игрок {item.Name} был добавлен в БД");
                 }
-
-                var options = new JsonSerializerOptions
-                {
-                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                    WriteIndented = true
-                };
-
-                var json = JsonSerializer.Serialize(dict.Values.ToList(), options);
-                await File.WriteAllTextAsync(_tournamentPlayersStats, json);
-
-                return (MethodResult.Success, "");
             }
-            catch (Exception ex)
-            {
-                return (MethodResult.InternalError, $"Ошибка сохранения: {ex.Message}");
-            }
+
+            await context.SaveChangesAsync();
+            return (MethodResult.Success, "");
         }
 
         public async Task<(MethodResult, string)> SaveTournamentResults(List<PlayerStats> incoming)
         {
-            try
+            using var context = _dbContextFactory.CreateDbContext();
+
+            var playerIds = incoming.Select(i => i.PlayerId).ToList();
+            var tournamentIds = incoming.Select(i => i.TournamentId).ToList();
+
+            var existing = await context.PlayerStats
+                .Where(e => playerIds.Contains(e.PlayerId) && tournamentIds.Contains(e.TournamentId))
+                .ToListAsync();
+
+            var existingDict = existing.ToDictionary(e => (e.PlayerId, e.TournamentId));
+
+            foreach (var item in incoming)
             {
-                // используем твой существующий метод как есть
-                var (getResult, getError, existing) = await GetTournamentPlayersStats();
-
-                List<PlayerStats> currentData;
-
-                if (getResult == MethodResult.Success && existing != null)
+                if (existingDict.TryGetValue((item.PlayerId, item.TournamentId), out var entity))
                 {
-                    currentData = existing;
+                    entity.Position = item.Position;
+                    entity.UpdatedAt = DateTime.UtcNow;
+                    _logger.LogInformation($"Место игрока {item.Name} было добавлено в БД");
                 }
                 else
                 {
-                    // если файл не прочитался — считаем, что данных пока нет
-                    currentData = new List<PlayerStats>();
+                    _logger.LogInformation($"По игроку {item.Name} нет данных в БД до начала турнира. Сохранение результатов турнира невозможно");
                 }
-
-                var dict = currentData.ToDictionary(
-                    x => (x.PlayerId, x.TournamentId),
-                    x => x
-                );
-
-                foreach (var item in incoming)
-                {
-                    var key = (item.PlayerId, item.TournamentId);
-
-                    if (dict.TryGetValue(key, out var existingItem))
-                    {
-                        UpdatePositionOnly(existingItem, item);
-                    }
-                    else
-                    {
-                        dict[key] = item;
-                    }
-                }
-
-                var options = new JsonSerializerOptions
-                {
-                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                    WriteIndented = true
-                };
-
-                var json = JsonSerializer.Serialize(dict.Values.ToList(), options);
-                await File.WriteAllTextAsync(_tournamentPlayersStats, json);
-
-                return (MethodResult.Success, "");
             }
-            catch (Exception ex)
-            {
-                return (MethodResult.InternalError, $"Ошибка сохранения: {ex.Message}");
-            }
+
+            await context.SaveChangesAsync();
+            return (MethodResult.Success, "");
         }
 
+        #region Legacy
         private static void UpdateAllFields(PlayerStats target, PlayerStats source)
         {
             var props = typeof(PlayerStats).GetProperties();
@@ -174,5 +148,6 @@ namespace ReactApp1.Server.Repositories
         {
             target.Position = source.Position;
         }
+        #endregion
     }
 }

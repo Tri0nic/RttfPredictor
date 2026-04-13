@@ -13,5 +13,7 @@ namespace ReactApp1.Server.Entities
         public int? TournamentsPlayed { get; set; }
         public int? WonGames { get; set; }
         public int? LostGames { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 }

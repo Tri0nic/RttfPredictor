@@ -29,6 +29,8 @@ namespace ReactApp1.Server.Data
                 entity.Property(e => e.TournamentsPlayed).HasColumnName("tournaments_played");
                 entity.Property(e => e.WonGames).HasColumnName("won_games");
                 entity.Property(e => e.LostGames).HasColumnName("lost_games");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             });
         }
     }
