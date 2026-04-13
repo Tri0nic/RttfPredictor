@@ -2,8 +2,8 @@ namespace ReactApp1.Server.Entities
 {
     public class PlayerStatsEntity
     {
-        public required string PlayerId { get; set; }
-        public required string TournamentId { get; set; }
+        public required long PlayerId { get; set; }
+        public required long TournamentId { get; set; }
         public int? Position { get; set; }
         public string? Name { get; set; }
         public string? City { get; set; }
@@ -15,5 +15,7 @@ namespace ReactApp1.Server.Entities
         public int? LostGames { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+
+        public TournamentEntity Tournament { get; set; } = null!;
     }
 }

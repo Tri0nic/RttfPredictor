@@ -153,6 +153,29 @@ namespace ReactApp1.Server.Services
 
             return (MethodResult.Success, "", players);
         }
+        private static DateTime? ParseTournamentDate(HtmlAgilityPack.HtmlDocument doc)
+        {
+            var timeNode = doc.DocumentNode.SelectSingleNode("//time");
+            if (timeNode == null) return null;
+
+            var text = timeNode.InnerText;
+            var dateMatch = System.Text.RegularExpressions.Regex.Match(text, @"\d{2}\.\d{2}\.\d{4}");
+            var timeMatch = System.Text.RegularExpressions.Regex.Match(text, @"\d{2}:\d{2}");
+
+            if (dateMatch.Success && timeMatch.Success &&
+                DateTime.TryParseExact(
+                    $"{dateMatch.Value} {timeMatch.Value}",
+                    "dd.MM.yyyy HH:mm",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out var dt))
+            {
+                return new DateTimeOffset(dt, TimeSpan.FromHours(3)).UtcDateTime;
+            }
+
+            return null;
+        }
+
         private static (int total, int won, int lost) ParseStats(HtmlNode cell)
         {
             int.TryParse(cell.GetAttributeValue("data-sort", "0"), out var total);
@@ -268,19 +291,25 @@ namespace ReactApp1.Server.Services
             if (playerNodes == null) return (MethodResult.Success, "", playersStats);
 
             var playerEntries = playerNodes
-                .Select(n => (Link: n.GetAttributeValue("href", ""), (string)null))
-                .Where(p => !string.IsNullOrEmpty(p.Link))
-                .DistinctBy(p => p.Link)
+                .Select(n => n.GetAttributeValue("href", "").Split('?')[0].Replace("players/", ""))
+                .Where(p => !string.IsNullOrEmpty(p) && long.TryParse(p, out _))
+                .Distinct()
                 .ToList();
 
+            if (!long.TryParse(tournamentLink, out var tournamentId))
+                return (MethodResult.NotFound, "Некорректный идентификатор турнира", null);
+
+            var tournamentDate = ParseTournamentDate(tournamentDoc);
+
             var position = 1;
-            foreach (var (playerLink, _) in playerEntries)
+            foreach (var playerLink in playerEntries)
             {
                 playersStats.Add(new PlayerStats
                 {
-                    PlayerId = playerLink,
-                    TournamentId = tournamentLink,
-                    Position = position
+                    PlayerId = long.Parse(playerLink),
+                    TournamentId = tournamentId,
+                    Position = position,
+                    TournamentDate = tournamentDate
                 });
 
                 position++;
@@ -305,13 +334,18 @@ namespace ReactApp1.Server.Services
 
             if (playerNodes == null) return (MethodResult.Success, "", playersStats);
 
+            if (!long.TryParse(tournamentLink, out var tournamentId))
+                return (MethodResult.NotFound, "Некорректный идентификатор турнира", null);
+
+            var tournamentDate = ParseTournamentDate(tournamentDoc);
+
             var playerEntries = playerNodes
-                .Select(n => (Link: n.GetAttributeValue("href", ""), (string)null))
-                .Where(p => !string.IsNullOrEmpty(p.Link))
-                .DistinctBy(p => p.Link)
+                .Select(n => n.GetAttributeValue("href", "").Split('?')[0])
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Distinct()
                 .ToList();
 
-            foreach (var (playerLink, _) in playerEntries)
+            foreach (var playerLink in playerEntries)
             {
                 var doc = web.Load(baseUrl + playerLink);
 
@@ -394,10 +428,14 @@ namespace ReactApp1.Server.Services
                     }
                 }
 
+                var playerIdStr = playerLink.Replace("players/", "");
+                if (!long.TryParse(playerIdStr, out var playerId))
+                    continue;
+
                 playersStats.Add(new PlayerStats
                 {
-                    PlayerId = playerLink,
-                    TournamentId = tournamentLink,
+                    PlayerId = playerId,
+                    TournamentId = tournamentId,
                     Name = nick,
                     City = string.IsNullOrEmpty(city) ? null : city,
                     Arm = arm,
@@ -405,7 +443,8 @@ namespace ReactApp1.Server.Services
                     Rating = rating,
                     TournamentsPlayed = tournamentsPlayed,
                     WonGames = wonGames,
-                    LostGames = lostGames
+                    LostGames = lostGames,
+                    TournamentDate = tournamentDate
                 });
             }
 
@@ -416,7 +455,11 @@ namespace ReactApp1.Server.Services
         {
             if (tournamentStatus == TournamentStatus.Ended)
             {
-                var (resultSave, messageSave) = await _playerRepository.SaveTournamentResults(responseParsed); 
+                var tournamentId = responseParsed.First().TournamentId;
+                var startsAt = responseParsed.First().TournamentDate;
+                await _playerRepository.UpsertTournament(tournamentId, startsAt);
+
+                var (resultSave, messageSave) = await _playerRepository.SaveTournamentResults(responseParsed);
 
                 return (MethodResult.Success, messageSave);
             }
@@ -426,7 +469,11 @@ namespace ReactApp1.Server.Services
             }
             else if (tournamentStatus == TournamentStatus.NotStarted)
             {
-                var (resultSave, messageSave) = await _playerRepository.SaveNotStartedTournamentPlayersStats(responseParsed); 
+                var tournamentId = responseParsed.First().TournamentId;
+                var startsAt = responseParsed.First().TournamentDate;
+                await _playerRepository.UpsertTournament(tournamentId, startsAt);
+
+                var (resultSave, messageSave) = await _playerRepository.SaveNotStartedTournamentPlayersStats(responseParsed);
 
                 return (MethodResult.Success, messageSave);
             }

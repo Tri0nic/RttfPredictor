@@ -8,9 +8,20 @@ namespace ReactApp1.Server.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         public DbSet<PlayerStatsEntity> PlayerStats { get; set; }
+        public DbSet<TournamentEntity> Tournaments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<TournamentEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.ToTable("tournaments");
+
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
+                entity.Property(e => e.StartsAt).HasColumnName("starts_at").HasColumnType("timestamp with time zone");
+            });
+
             modelBuilder.Entity<PlayerStatsEntity>(entity =>
             {
                 // Составной первичный ключ: игрок + турнир
@@ -31,6 +42,11 @@ namespace ReactApp1.Server.Data
                 entity.Property(e => e.LostGames).HasColumnName("lost_games");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasOne(e => e.Tournament)
+                      .WithMany()
+                      .HasForeignKey(e => e.TournamentId)
+                      .HasPrincipalKey(t => t.Id);
             });
         }
     }

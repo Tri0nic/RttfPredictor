@@ -5,14 +5,13 @@ namespace ReactApp1.Server.DTO
     public class PlayerStats
     {
         [JsonPropertyName("player_id")]
-        public required string PlayerId { get; set; }
+        public required long PlayerId { get; set; }
 
         [JsonPropertyName("tournament_id")]
-        public required string TournamentId { get; set; }
+        public required long TournamentId { get; set; }
 
         [JsonPropertyName("position")]
         public int? Position { get; set; }
-
 
         [JsonPropertyName("name")]
         public string? Name { get; set; }
@@ -37,6 +36,9 @@ namespace ReactApp1.Server.DTO
 
         [JsonPropertyName("lost_games")]
         public int? LostGames { get; set; }
+
+        [JsonPropertyName("tournament_date")]
+        public DateTime? TournamentDate { get; set; }
 
         [JsonPropertyName("created_at")]
         public DateTime CreatedAt { get; set; }

@@ -22,7 +22,9 @@ namespace ReactApp1.Server.Repositories
         {
             using var context = _dbContextFactory.CreateDbContext();
 
-            var entities = await context.PlayerStats.ToListAsync();
+            var entities = await context.PlayerStats
+                .Include(e => e.Tournament)
+                .ToListAsync();
 
             var data = entities.Select(e => new PlayerStats()
             {
@@ -36,10 +38,35 @@ namespace ReactApp1.Server.Repositories
                 Rating = e.Rating,
                 TournamentsPlayed = e.TournamentsPlayed,
                 WonGames = e.WonGames,
-                LostGames = e.LostGames
+                LostGames = e.LostGames,
+                TournamentDate = e.Tournament.StartsAt
             }).ToList();
 
             return (MethodResult.Success, "", data);
+        }
+
+        public async Task<(MethodResult, string)> UpsertTournament(long tournamentId, DateTime? startsAt)
+        {
+            using var context = _dbContextFactory.CreateDbContext();
+
+            var existing = await context.Tournaments.FindAsync(tournamentId);
+            if (existing == null)
+            {
+                context.Tournaments.Add(new TournamentEntity
+                {
+                    Id = tournamentId,
+                    StartsAt = startsAt
+                });
+                _logger.LogInformation($"Турнир {tournamentId} добавлен в БД");
+            }
+            else
+            {
+                existing.StartsAt = startsAt;
+                _logger.LogInformation($"Турнир {tournamentId} обновлён в БД");
+            }
+
+            await context.SaveChangesAsync();
+            return (MethodResult.Success, "");
         }
 
         public async Task<(MethodResult, string)> SaveNotStartedTournamentPlayersStats(List<PlayerStats> incoming)
@@ -118,36 +145,12 @@ namespace ReactApp1.Server.Repositories
                 }
                 else
                 {
-                    _logger.LogInformation($"По игроку {item.Name} нет данных в БД до начала турнира. Сохранение результатов турнира невозможно");
+                    _logger.LogInformation($"По игроку {item.Name} нет данных в БД до начала турнира. Сохранение результатов невозможно");
                 }
             }
 
             await context.SaveChangesAsync();
             return (MethodResult.Success, "");
         }
-
-        #region Legacy
-        private static void UpdateAllFields(PlayerStats target, PlayerStats source)
-        {
-            var props = typeof(PlayerStats).GetProperties();
-
-            foreach (var prop in props)
-            {
-                if (!prop.CanRead || !prop.CanWrite)
-                    continue;
-
-                if (prop.Name is nameof(PlayerStats.PlayerId) or nameof(PlayerStats.TournamentId))
-                    continue;
-
-                var value = prop.GetValue(source);
-                prop.SetValue(target, value);
-            }
-        }
-
-        private static void UpdatePositionOnly(PlayerStats target, PlayerStats source)
-        {
-            target.Position = source.Position;
-        }
-        #endregion
     }
 }
