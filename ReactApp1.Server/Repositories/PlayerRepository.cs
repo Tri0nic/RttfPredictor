@@ -1,4 +1,6 @@
-﻿using ReactApp1.Server.DTO;
+﻿using Microsoft.EntityFrameworkCore;
+using ReactApp1.Server.Data;
+using ReactApp1.Server.DTO;
 using ReactApp1.Server.Enums;
 using ReactApp1.Server.Interfaces;
 using System.Text.Encodings.Web;
@@ -11,30 +13,32 @@ namespace ReactApp1.Server.Repositories
         private readonly string _playersPath = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\players.json";
         private readonly string _tournamentPlayersStats = @"D:\MyTestProjects\AspNetAndReact\ReactApp1\ReactApp1.Server\Persistence\tournamentPlayersStats.json";
 
+        private readonly AppDbContext _dbContext;
+
+        public PlayerRepository(AppDbContext dbContext) 
+        {
+            _dbContext = dbContext;
+        }
+
         public async Task<(MethodResult, string, List<PlayerStats>?)> GetTournamentPlayersStats()
         {
-            if (!File.Exists(_tournamentPlayersStats))
-            {
-                return (MethodResult.Success, "", new List<PlayerStats>());
-            }
+            var entities = await _dbContext.PlayerStats.ToListAsync();
 
-            var json = await File.ReadAllTextAsync(_tournamentPlayersStats);
-
-            if (string.IsNullOrWhiteSpace(json))
+            // TODO: вынести через AutoMapper
+            var data = entities.Select(e => new PlayerStats()
             {
-                return (MethodResult.Success, "", new List<PlayerStats>());
-            }
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            var data = JsonSerializer.Deserialize<List<PlayerStats>>(json, options);
-            if (data == null)
-            {
-                return (MethodResult.InternalError, "Не удалось десериализовать данные", null);
-            }
+                PlayerId = e.PlayerId,
+                TournamentId = e.TournamentId,
+                Position = e.Position,
+                Name = e.Name,
+                City = e.City,
+                Year = e.Year,
+                Arm = e.Arm,
+                Rating = e.Rating,
+                TournamentsPlayed = e.TournamentsPlayed,
+                WonGames = e.WonGames,
+                LostGames = e.LostGames
+            }).ToList();
 
             return (MethodResult.Success, "", data);
         }

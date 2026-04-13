@@ -15,7 +15,7 @@ namespace ReactApp1.Server.Controllers
             _playersService = playersService;
         }
 
-        [HttpGet]
+        [HttpGet("AllPlayers")]
         public async Task<IEnumerable<PlayerStats>> GetTournamentPlayers()
         {
             var (result, message, response) = await _playersService.GetTournamentPlayers();
