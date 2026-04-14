@@ -26,173 +26,66 @@ namespace ReactApp1.Server.Services
             return (result, message, response);
         }
 
-        public async Task<(MethodResult, string, int)> PostPlayers(PostPlayersRequest request)
+        public async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostTodayTournamentsPlayersStats()
         {
-            var (resultParseTournaments, messageParseTournaments, tournamentLinks) = await ParseTournaments(request);
+            _logger.LogInformation("Началось добавление игроков турниров за прошлый и сегодняшний день");
 
-            var (resultGetPlayersFromTournaments, messageGetPlayersFromTournaments, playersAfterTournaments) = await GetPlayersFromTournaments(tournamentLinks);
+            var (result, message, players) = await PostTournamentsPlayersStats(-1, 0);
 
-
-            //var (result, message) = await _playerRepository.SavePlayersAfterTournaments(playersAfterTournaments);
-
-            return (MethodResult.Success, "", playersAfterTournaments.Count);
+            _logger.LogInformation("Закончилось добавление игроков турниров за прошлый и сегодняшний день");
+            return (result, message, players);
         }
 
-
-        private async Task<(MethodResult, string, List<string>)> ParseTournaments(PostPlayersRequest request)
+        public async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostFutureTournamentsPlayersStats()
         {
-            var web = new HtmlWeb();
+            _logger.LogInformation("Началось добавление игроков турниров за 2 следующих дня");
 
+            var (result, message, players) = await PostTournamentsPlayersStats(1, 2);
 
-            if (request.Month.HasValue)
-            {
-                var month = request.Month >= 10 ? request.Month.ToString() : "0" + request.Month.ToString();
-                _rttfLinks.CalendarLink = _rttfLinks.CalendarLink.Replace("month=", $"month={month}");
-            }
-
-            if (request.Year.HasValue)
-            {
-                _rttfLinks.CalendarLink = _rttfLinks.CalendarLink.Replace("year=", $"year={request.Year}");
-            }
-
-            if (request.Type != null)
-            {
-                _rttfLinks.CalendarLink = _rttfLinks.CalendarLink.Replace("rats=", $"rats={request.Type}");
-            }
-
-            if (request.City != null)
-            {
-                _rttfLinks.CalendarLink = _rttfLinks.CalendarLink.Replace("cities%5B%5D=", $"cities%5B%5D=r{request.City}");
-            }
-
-            if (request.RatingMin.HasValue)
-            {
-                _rttfLinks.CalendarLink = _rttfLinks.CalendarLink.Replace("rat_from=", $"rat_from={request.RatingMin}");
-            }
-
-            if (request.RatingMax.HasValue)
-            {
-                _rttfLinks.CalendarLink = _rttfLinks.CalendarLink.Replace("rat_to=", $"rat_to={request.RatingMax}");
-            }
-
-            var doc = web.Load(_rttfLinks.CalendarLink);
-            var tournamentNodes = doc.DocumentNode.SelectNodes(
-                "//table[@class='calendar']//a[contains(@href, 'tournaments/')]"
-            );
-
-            if (tournamentNodes == null || !tournamentNodes.Any())
-            {
-                return (MethodResult.NotFound, "Турниры не найдены", null);
-            }
-
-            var tournamentLinks = new List<string>();
-
-            foreach (var node in tournamentNodes)
-            {
-                var href = node.GetAttributeValue("href", "");
-                tournamentLinks.Add(href);
-            }
-
-            return (MethodResult.Success, "", tournamentLinks);
+            _logger.LogInformation("Закончилось добавление игроков турниров за 2 следующих дня");
+            return (result, message, players);
         }
 
-        private async Task<(MethodResult, string, List<PlayerAfterTournament>)> GetPlayersFromTournaments(List<string> tournamentLinks)
+        private async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostTournamentsPlayersStats(int startDayDelta, int endDayDelta)
         {
-            var web = new HtmlWeb();
-            var baseUri = new Uri(_rttfLinks.CalendarLink);
-            var baseUrl = $"{baseUri.Scheme}://{baseUri.Host}/";
-            var players = new List<PlayerAfterTournament>();
+            var now = DateTime.Now;
 
-            foreach (var link in tournamentLinks)
-            {
-                var doc = web.Load(baseUrl + link);
-                var rows = doc.DocumentNode.SelectNodes(
-                    "//table[contains(@class, 'tour-players')]//tbody//tr"
+            var baseUrl = _rttfLinks.SingleMoscowTournamentsLinks
+                .Replace("date_from=", $"date_from={now.Date.AddDays(startDayDelta):dd.MM.yyyy}")
+                .Replace("date_to=", $"date_to={now.Date.AddDays(endDayDelta):dd.MM.yyyy}");
+
+            var web = new HtmlWeb();
+            var tournamentsDoc = web.Load(baseUrl);
+
+            var rows = tournamentsDoc.DocumentNode.SelectNodes(
+                    "//section[contains(@class, 'tours-list')]//tr[contains(@onclick, '/tournaments/')]"
                 );
 
-                if (rows == null) continue;
+            if (rows == null || !rows.Any())
+                return (MethodResult.NotFound, "Турниры не найдены", null);
 
-                foreach (var row in rows)
-                {
-                    var cells = row.SelectNodes("td");
-                    if (cells == null) continue;
+            var tournamentIds = rows
+                .Select(r => System.Text.RegularExpressions.Regex.Match(
+                    r.GetAttributeValue("onclick", ""), @"/tournaments/(\d+)"))
+                .Where(m => m.Success)
+                .Select(m => long.Parse(m.Groups[1].Value))
+                .Distinct()
+                .ToList();
 
-                    var playerLink = cells[1].SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "";
-                    var rawName = cells[1].SelectSingleNode(".//a")?.InnerText.Trim() ?? "";
-                    var nickMatch = System.Text.RegularExpressions.Regex.Match(rawName, @"\(([^)]+)\)");
-                    var name = nickMatch.Success ? nickMatch.Groups[1].Value : rawName;
-                    var city = cells[2].InnerText.Trim();
+            var result = new Dictionary<long, List<PlayerStats>>();
 
-                    int.TryParse(cells[3].SelectSingleNode(".//dfn")?.InnerText.Trim(), out var ratingBefore);
-                    decimal.TryParse(cells[4].GetAttributeValue("data-sort", "0"),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out var ratingDelta);
-                    int.TryParse(cells[5].SelectSingleNode(".//dfn")?.InnerText.Trim(), out var ratingAfter);
-
-                    var (games, gamesWon, gamesLost) = ParseStats(cells[6]);
-                    var (sets, setsWon, setsLost) = ParseStats(cells[7]);
-
-                    players.Add(new PlayerAfterTournament
-                    {
-                        Link = playerLink,
-                        Name = name,
-                        City = city,
-                        RatingBefore = ratingBefore,
-                        RatingDelta = ratingDelta,
-                        RatingAfter = ratingAfter,
-                        Games = games,
-                        GamesWon = gamesWon,
-                        GamesLost = gamesLost,
-                        Sets = sets,
-                        SetsWon = setsWon,
-                        SetsLost = setsLost
-                    });
-                }
-            }
-
-            return (MethodResult.Success, "", players);
-        }
-        private static DateTime? ParseTournamentDate(HtmlAgilityPack.HtmlDocument doc)
-        {
-            var timeNode = doc.DocumentNode.SelectSingleNode("//time");
-            if (timeNode == null) return null;
-
-            var text = timeNode.InnerText;
-            var dateMatch = System.Text.RegularExpressions.Regex.Match(text, @"\d{2}\.\d{2}\.\d{4}");
-            var timeMatch = System.Text.RegularExpressions.Regex.Match(text, @"\d{2}:\d{2}");
-
-            if (dateMatch.Success && timeMatch.Success &&
-                DateTime.TryParseExact(
-                    $"{dateMatch.Value} {timeMatch.Value}",
-                    "dd.MM.yyyy HH:mm",
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None,
-                    out var dt))
+            var i = 0;
+            foreach (var tournamentId in tournamentIds)
             {
-                return new DateTimeOffset(dt, TimeSpan.FromHours(3)).UtcDateTime;
+                _logger.LogInformation($"Турнир {i++}/{tournamentIds.Count}");
+
+                var (resultStats, messageStats, playerStats) = await PostTournamentPlayersStats(tournamentId.ToString());
+                if (resultStats == MethodResult.Success && playerStats != null)
+                    result[tournamentId] = playerStats;
             }
 
-            return null;
+            return (MethodResult.Success, "", result);
         }
-
-        private static (int total, int won, int lost) ParseStats(HtmlNode cell)
-        {
-            int.TryParse(cell.GetAttributeValue("data-sort", "0"), out var total);
-            var match = System.Text.RegularExpressions.Regex.Match(cell.InnerText, @"\((\d+)-(\d+)\)");
-            int.TryParse(match.Groups[1].Value, out var won);
-            int.TryParse(match.Groups[2].Value, out var lost);
-            return (total, won, lost);
-        }
-
-
-
-
-
-
-
-
-
 
         public async Task<(MethodResult, string, List<PlayerStats>)> PostTournamentPlayersStats(string tournamentLink)
         {
@@ -247,7 +140,12 @@ namespace ReactApp1.Server.Services
         {
             if (tournamentStatus == TournamentStatus.Ended)
             {
-                // Парсим результаты турнира если он уже закончился
+                if (!long.TryParse(tournamentLink, out var tournamentId) ||
+                    !await _playerRepository.TournamentExists(tournamentId))
+                {
+                    return (MethodResult.NotFound, $"Турнир {tournamentId} не найден в БД — сохранение результатов невозможно", null);
+                }
+
                 var (resultTournamentEndedStats, messageTournamentEndedStats, tournamentEndedStats) = await ParseEndedTournamentPlayersStats(tournamentLink);
 
                 return (resultTournamentEndedStats, messageTournamentEndedStats, tournamentEndedStats);
@@ -259,11 +157,6 @@ namespace ReactApp1.Server.Services
             }
             else if (tournamentStatus == TournamentStatus.NotStarted)
             {
-                // Обновляем игроков в БД, которые участвуют в турнире:
-                //      если игрок уже есть в БД, тогда обновляем его данные
-                //      если игрока в БД нет, то добавляем его
-                //      если игрок исчез, то удаляем его из БД
-
                 var (resultTournamentNotStartedStats, messageTournamentNotStartedStats, tournamentNotStartedStats) = await ParseNotStartedTournamentPlayersStats(tournamentLink);
 
                 return (resultTournamentNotStartedStats, messageTournamentNotStartedStats, tournamentNotStartedStats);
@@ -285,7 +178,7 @@ namespace ReactApp1.Server.Services
             var playersStats = new List<PlayerStats>();
 
             var playerNodes = tournamentDoc.DocumentNode.SelectNodes(
-                "//table[contains(@class, 'tour-players')]//tbody//tr//a[contains(@href, 'players/')]"
+                "//section[@class='tour-results']//table[contains(@class, 'tour-players')]//tbody//tr//a[contains(@href, 'players/')]"
             );
 
             if (playerNodes == null) return (MethodResult.Success, "", playersStats);
@@ -329,10 +222,13 @@ namespace ReactApp1.Server.Services
             var playersStats = new List<PlayerStats>();
 
             var playerNodes = tournamentDoc.DocumentNode.SelectNodes(
-                "//table[@class='tablesort']//tbody//tr//a[contains(@href, 'players/')]"
+                "//section[@id='tour-reg-list']//table[@class='tablesort']//tbody//tr//a[contains(@href, 'players/')]"
             );
 
-            if (playerNodes == null) return (MethodResult.Success, "", playersStats);
+            if (playerNodes == null)
+            {
+                return (MethodResult.NotFound, "В турнире нет участников", playersStats);
+            }
 
             if (!long.TryParse(tournamentLink, out var tournamentId))
                 return (MethodResult.NotFound, "Некорректный идентификатор турнира", null);
@@ -451,14 +347,33 @@ namespace ReactApp1.Server.Services
             return (MethodResult.Success, "", playersStats);
         }
 
+        private static DateTime? ParseTournamentDate(HtmlAgilityPack.HtmlDocument doc)
+        {
+            var timeNode = doc.DocumentNode.SelectSingleNode("//time");
+            if (timeNode == null) return null;
+
+            var text = timeNode.InnerText;
+            var dateMatch = System.Text.RegularExpressions.Regex.Match(text, @"\d{2}\.\d{2}\.\d{4}");
+            var timeMatch = System.Text.RegularExpressions.Regex.Match(text, @"\d{2}:\d{2}");
+
+            if (dateMatch.Success && timeMatch.Success &&
+                DateTime.TryParseExact(
+                    $"{dateMatch.Value} {timeMatch.Value}",
+                    "dd.MM.yyyy HH:mm",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out var dt))
+            {
+                return new DateTimeOffset(dt, TimeSpan.FromHours(3)).UtcDateTime;
+            }
+
+            return null;
+        }
+
         private async Task<(MethodResult, string)> SaveTournamentPlayersStats(List<PlayerStats> responseParsed, TournamentStatus? tournamentStatus)
         {
             if (tournamentStatus == TournamentStatus.Ended)
             {
-                var tournamentId = responseParsed.First().TournamentId;
-                var startsAt = responseParsed.First().TournamentDate;
-                await _playerRepository.UpsertTournament(tournamentId, startsAt);
-
                 var (resultSave, messageSave) = await _playerRepository.SaveTournamentResults(responseParsed);
 
                 return (MethodResult.Success, messageSave);

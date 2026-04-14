@@ -45,6 +45,12 @@ namespace ReactApp1.Server.Repositories
             return (MethodResult.Success, "", data);
         }
 
+        public async Task<bool> TournamentExists(long tournamentId)
+        {
+            using var context = _dbContextFactory.CreateDbContext();
+            return await context.Tournaments.AnyAsync(t => t.Id == tournamentId);
+        }
+
         public async Task<(MethodResult, string)> UpsertTournament(long tournamentId, DateTime? startsAt)
         {
             using var context = _dbContextFactory.CreateDbContext();
@@ -81,8 +87,11 @@ namespace ReactApp1.Server.Repositories
 
             var existingDict = existing.ToDictionary(e => (e.PlayerId, e.TournamentId));
 
+            var i = 0;
             foreach (var item in incoming)
             {
+                
+
                 if (existingDict.TryGetValue((item.PlayerId, item.TournamentId), out var entity))
                 {
                     entity.Name = item.Name;
@@ -95,7 +104,7 @@ namespace ReactApp1.Server.Repositories
                     entity.LostGames = item.LostGames;
                     entity.UpdatedAt = DateTime.UtcNow;
 
-                    _logger.LogInformation($"Данные игрока {item.Name} были обновлены в БД");
+                    _logger.LogInformation($"Игрок {i++}/{incoming.Count}; {item.Name} обновлен в БД");
                 }
                 else
                 {
@@ -114,7 +123,8 @@ namespace ReactApp1.Server.Repositories
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });
-                    _logger.LogInformation($"Игрок {item.Name} был добавлен в БД");
+
+                    _logger.LogInformation($"Игрок {i++}/{incoming.Count}; {item.Name} добавлен в БД");
                 }
             }
 

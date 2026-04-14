@@ -3,5 +3,6 @@
     public class RttfLinks
     {
         public string CalendarLink { get; set; }
+        public string SingleMoscowTournamentsLinks { get; set; }
     }
 }

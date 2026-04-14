@@ -31,26 +31,14 @@ namespace ReactApp1.Server.Controllers
             return Ok($"Для турнира {tournamentLink} было обработано {response.Count} игроков");
         }
 
-
-        #region Methods needs rework
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] PostPlayersRequest request)
+        [HttpPost("PostTournamentsPlayersStats")]
+        public async Task<IActionResult> PostTournamentsPlayersStats()
         {
-            // Парсит турниры по календарю - в будущем нужно будет доработать, пока что не использовать
-            var (result, message, response) = await _playersService.PostPlayers(request);
+            var (resultToday, messageToday, responseToday) = await _playersService.PostTodayTournamentsPlayersStats();
 
-            return Ok($"Было обработано {response} игроков");
+            var (resultFuture, messageFuture, responseFuture) = await _playersService.PostFutureTournamentsPlayersStats();
+
+            return Ok($"За сегодня было обработано {responseToday.Count} турниров\nЗа ближайшие дни было обработано {responseFuture.Count} турниров");
         }
-
-        //[HttpPut("{id}")]
-        //public void Put(int id, [FromBody] string value)
-        //{
-        //}
-
-        //[HttpDelete("{id}")]
-        //public void Delete(int id)
-        //{
-        //}
-        #endregion
     }
 }
