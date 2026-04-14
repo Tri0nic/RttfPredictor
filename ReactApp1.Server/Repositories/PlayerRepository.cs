@@ -104,7 +104,7 @@ namespace ReactApp1.Server.Repositories
                     entity.LostGames = item.LostGames;
                     entity.UpdatedAt = DateTime.UtcNow;
 
-                    _logger.LogInformation($"Игрок обновлен в БД {item.Name} -- {i++}/{incoming.Count}");
+                    _logger.LogInformation($"Игрок обновлен в БД {item.Name} -- {++i}/{incoming.Count}");
                 }
                 else
                 {
@@ -124,7 +124,7 @@ namespace ReactApp1.Server.Repositories
                         UpdatedAt = DateTime.UtcNow
                     });
 
-                    _logger.LogInformation($"Игрок добавлен в БД {item.Name} -- {i++}/{incoming.Count}");
+                    _logger.LogInformation($"Игрок добавлен в БД {item.Name} -- {++i}/{incoming.Count}");
                 }
             }
 
@@ -153,11 +153,11 @@ namespace ReactApp1.Server.Repositories
                     entity.Position = item.Position;
                     entity.UpdatedAt = DateTime.UtcNow;
 
-                    _logger.LogInformation($"Место игрока добавлено в БД {item.Name} -- {i++}/{incoming.Count}");
+                    _logger.LogInformation($"Место игрока добавлено в БД {item.Name} -- {++i}/{incoming.Count}");
                 }
                 else
                 {
-                    _logger.LogInformation($"По игроку нет данных в БД до начала турнира. Сохранение результатов невозможно. {item.Name} -- {i++}/{incoming.Count}");
+                    _logger.LogInformation($"По игроку нет данных в БД до начала турнира. Сохранение результатов невозможно. {item.Name} -- {++i}/{incoming.Count}");
                 }
             }
 

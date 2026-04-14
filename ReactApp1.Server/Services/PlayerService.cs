@@ -77,7 +77,7 @@ namespace ReactApp1.Server.Services
             var i = 0;
             foreach (var tournamentId in tournamentIds)
             {
-                _logger.LogInformation($"Турнир {tournamentId} -- {i++}/{tournamentIds.Count}");
+                _logger.LogInformation($"Турнир {tournamentId} -- {++i}/{tournamentIds.Count}");
 
                 var (resultStats, messageStats, playerStats) = await PostTournamentPlayersStats(tournamentId.ToString());
                 if (resultStats == MethodResult.Success && playerStats != null)
@@ -269,7 +269,6 @@ namespace ReactApp1.Server.Services
 
                     if (rating != 0)
                     {
-                        _logger.LogInformation($"Рейтинг пользователя {nick} был спаршен успешно.");
                         break;
                     }
 
