@@ -104,7 +104,7 @@ namespace ReactApp1.Server.Repositories
                     entity.LostGames = item.LostGames;
                     entity.UpdatedAt = DateTime.UtcNow;
 
-                    _logger.LogInformation($"Игрок {i++}/{incoming.Count}; {item.Name} обновлен в БД");
+                    _logger.LogInformation($"Игрок обновлен в БД {item.Name} -- {i++}/{incoming.Count}");
                 }
                 else
                 {
@@ -124,7 +124,7 @@ namespace ReactApp1.Server.Repositories
                         UpdatedAt = DateTime.UtcNow
                     });
 
-                    _logger.LogInformation($"Игрок {i++}/{incoming.Count}; {item.Name} добавлен в БД");
+                    _logger.LogInformation($"Игрок добавлен в БД {item.Name} -- {i++}/{incoming.Count}");
                 }
             }
 
@@ -145,17 +145,19 @@ namespace ReactApp1.Server.Repositories
 
             var existingDict = existing.ToDictionary(e => (e.PlayerId, e.TournamentId));
 
+            var i = 0;
             foreach (var item in incoming)
             {
                 if (existingDict.TryGetValue((item.PlayerId, item.TournamentId), out var entity))
                 {
                     entity.Position = item.Position;
                     entity.UpdatedAt = DateTime.UtcNow;
-                    _logger.LogInformation($"Место игрока {item.Name} было добавлено в БД");
+
+                    _logger.LogInformation($"Место игрока добавлено в БД {item.Name} -- {i++}/{incoming.Count}");
                 }
                 else
                 {
-                    _logger.LogInformation($"По игроку {item.Name} нет данных в БД до начала турнира. Сохранение результатов невозможно");
+                    _logger.LogInformation($"По игроку нет данных в БД до начала турнира. Сохранение результатов невозможно. {item.Name} -- {i++}/{incoming.Count}");
                 }
             }
 
