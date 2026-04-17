@@ -26,33 +26,34 @@ namespace ReactApp1.Server.Services
             return (result, message, response);
         }
 
-        public async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostTodayTournamentsPlayersStats()
+        public async Task<(MethodResult, string, Dictionary<string, Dictionary<long, List<PlayerStats>>>)> PostTournamentsPlayersStatsNearbyDays(int startDay, int endDay)
         {
-            _logger.LogInformation("Началось добавление игроков турниров за прошлый и сегодняшний день");
+            var now = DateTime.Now;
+            var result = new Dictionary<string, Dictionary<long, List<PlayerStats>>>();
 
-            var (result, message, players) = await PostTournamentsPlayersStats(-1, 0);
+            for (int i = startDay; i <= endDay; i++)
+            {
+                var selectedDay = now.Date.AddDays(i).ToString("dd.MM.yyyy");
 
-            _logger.LogInformation("Закончилось добавление игроков турниров за прошлый и сегодняшний день");
-            return (result, message, players);
+                _logger.LogInformation($"Началось добавление игроков за турниры {selectedDay} числа");
+
+                var (dayResult, dayMessage, dayPlayers) = await PostTournamentsPlayersStats(i, i);
+
+                result[selectedDay] = dayPlayers ?? new Dictionary<long, List<PlayerStats>>();
+
+                _logger.LogInformation($"Закончилось добавление игроков за турниры {selectedDay} числа");
+            }
+
+            return (MethodResult.Success, "", result);
         }
 
-        public async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostFutureTournamentsPlayersStats()
-        {
-            _logger.LogInformation("Началось добавление игроков турниров за 2 следующих дня");
-
-            var (result, message, players) = await PostTournamentsPlayersStats(1, 2);
-
-            _logger.LogInformation("Закончилось добавление игроков турниров за 2 следующих дня");
-            return (result, message, players);
-        }
-
-        private async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostTournamentsPlayersStats(int startDayDelta, int endDayDelta)
+        private async Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostTournamentsPlayersStats(int startDay, int endDay)
         {
             var now = DateTime.Now;
 
             var baseUrl = _rttfLinks.SingleMoscowTournamentsLinks
-                .Replace("date_from=", $"date_from={now.Date.AddDays(startDayDelta):dd.MM.yyyy}")
-                .Replace("date_to=", $"date_to={now.Date.AddDays(endDayDelta):dd.MM.yyyy}");
+                .Replace("date_from=", $"date_from={now.Date.AddDays(startDay):dd.MM.yyyy}")
+                .Replace("date_to=", $"date_to={now.Date.AddDays(endDay):dd.MM.yyyy}");
 
             var web = new HtmlWeb();
             var tournamentsDoc = web.Load(baseUrl);

@@ -7,7 +7,6 @@ namespace ReactApp1.Server.Interfaces
     {
         Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayers();
         Task<(MethodResult, string, List<PlayerStats>)> PostTournamentPlayersStats(string tournamentLink);
-        Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostTodayTournamentsPlayersStats();
-        Task<(MethodResult, string, Dictionary<long, List<PlayerStats>>)> PostFutureTournamentsPlayersStats();
+        Task<(MethodResult, string, Dictionary<string, Dictionary<long, List<PlayerStats>>>)> PostTournamentsPlayersStatsNearbyDays(int startDay, int endDay);
     }
 }
