@@ -5,9 +5,9 @@ namespace ReactApp1.Server.DTO
     public class PostTournamentsPlayersStatsRequest
     {
         [JsonPropertyName("start_day")]
-        public int startDay { get; set; } = -1;
+        public int? startDay { get; set; }
 
         [JsonPropertyName("end_day")]
-        public int endDay { get; set; } = 2;
+        public int? endDay { get; set; }
     }
 }

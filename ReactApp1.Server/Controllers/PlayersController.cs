@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using ReactApp1.Server.DTO;
 using ReactApp1.Server.Interfaces;
 
@@ -9,10 +10,12 @@ namespace ReactApp1.Server.Controllers
     public class PlayersController : ControllerBase
     {
         private readonly IPlayerService _playersService;
+        private readonly HangfireJobsSettings _hangfireSettings;
 
-        public PlayersController(IPlayerService playersService)
+        public PlayersController(IPlayerService playersService, IOptions<HangfireJobsSettings> hangfireSettings)
         {
             _playersService = playersService;
+            _hangfireSettings = hangfireSettings.Value;
         }
 
         [HttpGet("AllPlayers")]
@@ -34,7 +37,9 @@ namespace ReactApp1.Server.Controllers
         [HttpPost("PostTournamentsPlayersStats")]
         public async Task<IActionResult> PostTournamentsPlayersStats([FromBody] PostTournamentsPlayersStatsRequest request)
         {
-            var (result, message, response) = await _playersService.PostTournamentsPlayersStatsNearbyDays(request.startDay, request.endDay);
+            var startDay = request.startDay ?? _hangfireSettings.PostTournamentsPlayersStatsStartDay;
+            var endDay = request.endDay ?? _hangfireSettings.PostTournamentsPlayersStatsEndDay;
+            var (result, message, response) = await _playersService.PostTournamentsPlayersStatsNearbyDays(startDay, endDay);
 
             var lines = new List<string>();
             var totalTournaments = 0;
@@ -50,8 +55,8 @@ namespace ReactApp1.Server.Controllers
                 lines.Add($"За {date} было обработано {dayTournaments} турниров и {dayPlayers} игроков");
             }
 
-            var startDate = DateTime.Now.Date.AddDays(request.startDay).ToString("dd.MM.yyyy");
-            var endDate = DateTime.Now.Date.AddDays(request.endDay).ToString("dd.MM.yyyy");
+            var startDate = DateTime.Now.Date.AddDays(startDay).ToString("dd.MM.yyyy");
+            var endDate = DateTime.Now.Date.AddDays(endDay).ToString("dd.MM.yyyy");
             lines.Add($"\nИтого за {startDate} - {endDate}: {totalTournaments} турниров и {totalPlayers} игроков");
 
             return Ok(string.Join("\n", lines));

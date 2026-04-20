@@ -1,5 +1,8 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Hangfire;
+using Hangfire.PostgreSql;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using ReactApp1.Server.Data;
 using ReactApp1.Server.DTO;
@@ -31,6 +34,14 @@ builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.Configure<RttfLinks>(
     builder.Configuration.GetSection(nameof(RttfLinks)));
 
+builder.Services.Configure<HangfireJobsSettings>(
+    builder.Configuration.GetSection("HangfireJobs"));
+
+var connectionString = builder.Configuration.GetConnectionString("PostgresDatabaseOptions");
+builder.Services.AddHangfire(config =>
+    config.UsePostgreSqlStorage(c => c.UseNpgsqlConnection(connectionString)));
+builder.Services.AddHangfireServer();
+
 #endregion
 
 var app = builder.Build();
@@ -44,6 +55,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseHangfireDashboard();
+
+var hangfireSettings = app.Services.GetRequiredService<IOptions<HangfireJobsSettings>>().Value;
+RecurringJob.AddOrUpdate<IPlayerService>(
+    "PostTournamentsPlayersStats",
+    service => service.PostTournamentsPlayersStatsNearbyDays(hangfireSettings.PostTournamentsPlayersStatsStartDay, hangfireSettings.PostTournamentsPlayersStatsEndDay),
+    hangfireSettings.PostTournamentsPlayersStatsCron);
 
 app.UseHttpsRedirection();
 
