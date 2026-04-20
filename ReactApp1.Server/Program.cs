@@ -2,7 +2,6 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.PostgreSql;
-using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using ReactApp1.Server.Data;
 using ReactApp1.Server.DTO;
@@ -58,11 +57,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHangfireDashboard();
 
-var hangfireSettings = app.Services.GetRequiredService<IOptions<HangfireJobsSettings>>().Value;
+var hangfireJobsConfig = builder.Configuration.GetSection("HangfireJobs");
+var cronSchedule = hangfireJobsConfig["PostTournamentsPlayersStatsCron"];
+var startDay = hangfireJobsConfig.GetValue<int>("PostTournamentsPlayersStatsStartDay");
+var endDay = hangfireJobsConfig.GetValue<int>("PostTournamentsPlayersStatsEndDay");
 RecurringJob.AddOrUpdate<IPlayerService>(
     "PostTournamentsPlayersStats",
-    service => service.PostTournamentsPlayersStatsNearbyDays(hangfireSettings.PostTournamentsPlayersStatsStartDay, hangfireSettings.PostTournamentsPlayersStatsEndDay),
-    hangfireSettings.PostTournamentsPlayersStatsCron);
+    service => service.PostTournamentsPlayersStatsNearbyDays(startDay, endDay),
+    cronSchedule);
 
 app.UseHttpsRedirection();
 
