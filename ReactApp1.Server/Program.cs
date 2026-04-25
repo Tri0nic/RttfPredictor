@@ -5,9 +5,11 @@ using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using ReactApp1.Server.Data;
 using ReactApp1.Server.DTO;
+using ReactApp1.Server.InfrastructureInterfaces;
 using ReactApp1.Server.Interfaces;
 using ReactApp1.Server.Repositories;
 using ReactApp1.Server.Services;
+using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +31,16 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddTransient<IPlayerService, PlayerService>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+builder.Services.AddTransient<IPredictionService, PredictionService>();
+builder.Services.AddScoped<IMLModelRepository, MLModelRepository>();
+builder.Services.AddScoped<IPredictionReadRepository, PredictionReadRepository>();
+
+builder.Services.AddRefitClient<IRttfMlModel>()
+    .ConfigureHttpClient(client =>
+    {
+        client.BaseAddress = new Uri(builder.Configuration["PythonMlService:BaseUrl"] ?? "http://localhost:5001");
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
 
 builder.Services.Configure<RttfLinks>(
     builder.Configuration.GetSection(nameof(RttfLinks)));

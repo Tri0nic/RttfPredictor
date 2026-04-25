@@ -45,6 +45,66 @@ namespace ReactApp1.Server.Repositories
             return (MethodResult.Success, "", data);
         }
 
+        public async Task<List<PlayerStats>> GetPlayersByTournamentId(long tournamentId)
+        {
+            using var context = _dbContextFactory.CreateDbContext();
+
+            var entities = await context.PlayerStats
+                .Include(e => e.Tournament)
+                .Where(e => e.TournamentId == tournamentId)
+                .ToListAsync();
+
+            return entities.Select(e => new PlayerStats
+            {
+                PlayerId = e.PlayerId,
+                TournamentId = e.TournamentId,
+                Position = e.Position,
+                Name = e.Name,
+                City = e.City,
+                Year = e.Year,
+                Arm = e.Arm,
+                Rating = e.Rating,
+                TournamentsPlayed = e.TournamentsPlayed,
+                WonGames = e.WonGames,
+                LostGames = e.LostGames,
+                TournamentDate = e.Tournament.StartsAt,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            }).ToList();
+        }
+
+        public async Task<PlayerStats?> GetLatestPlayerStats(long playerId)
+        {
+            using var context = _dbContextFactory.CreateDbContext();
+
+            var entity = await context.PlayerStats
+                .Include(e => e.Tournament)
+                .Where(e => e.PlayerId == playerId)
+                .OrderByDescending(e => e.Tournament.StartsAt)
+                .ThenByDescending(e => e.UpdatedAt)
+                .FirstOrDefaultAsync();
+
+            if (entity == null) return null;
+
+            return new PlayerStats
+            {
+                PlayerId = entity.PlayerId,
+                TournamentId = entity.TournamentId,
+                Position = entity.Position,
+                Name = entity.Name,
+                City = entity.City,
+                Year = entity.Year,
+                Arm = entity.Arm,
+                Rating = entity.Rating,
+                TournamentsPlayed = entity.TournamentsPlayed,
+                WonGames = entity.WonGames,
+                LostGames = entity.LostGames,
+                TournamentDate = entity.Tournament.StartsAt,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt,
+            };
+        }
+
         public async Task<bool> TournamentExists(long tournamentId)
         {
             using var context = _dbContextFactory.CreateDbContext();

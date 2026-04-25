@@ -9,6 +9,8 @@ namespace ReactApp1.Server.Data
 
         public DbSet<PlayerStatsEntity> PlayerStats { get; set; }
         public DbSet<TournamentEntity> Tournaments { get; set; }
+        public DbSet<PredictionEntity> Predictions { get; set; }
+        public DbSet<ModelTrainingEntity> ModelTrainings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -20,6 +22,31 @@ namespace ReactApp1.Server.Data
 
                 entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
                 entity.Property(e => e.StartsAt).HasColumnName("starts_at").HasColumnType("timestamp with time zone");
+            });
+
+            modelBuilder.Entity<PredictionEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("predictions");
+                entity.Property(e => e.Id).HasColumnName("id").UseIdentityByDefaultColumn();
+                entity.Property(e => e.PlayerId).HasColumnName("player_id");
+                entity.Property(e => e.TournamentId).HasColumnName("tournament_id");
+                entity.Property(e => e.PredictedPosition).HasColumnName("predicted_position");
+                entity.Property(e => e.ModelVersion).HasColumnName("model_version");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
+                entity.HasIndex(e => new { e.PlayerId, e.TournamentId }).IsUnique();
+            });
+
+            modelBuilder.Entity<ModelTrainingEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("model_trainings");
+                entity.Property(e => e.Id).HasColumnName("id").UseIdentityByDefaultColumn();
+                entity.Property(e => e.ModelVersion).HasColumnName("model_version");
+                entity.Property(e => e.TrainingRows).HasColumnName("training_rows");
+                entity.Property(e => e.Success).HasColumnName("success");
+                entity.Property(e => e.FeatureImportances).HasColumnName("feature_importances").HasColumnType("jsonb");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
             });
 
             modelBuilder.Entity<PlayerStatsEntity>(entity =>
