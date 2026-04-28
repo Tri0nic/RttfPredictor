@@ -18,7 +18,14 @@ namespace ReactApp1.Server.Controllers
             _hangfireSettings = hangfireSettings.Value;
         }
 
-        [HttpGet("AllPlayers")]
+        [HttpGet("count")]
+        public async Task<IActionResult> CountPlayers()
+        {
+            var count = await _playersService.CountPlayers();
+            return Ok(new { count });
+        }
+
+        [HttpGet("all-players")]
         public async Task<IEnumerable<PlayerStats>> GetTournamentPlayers()
         {
             var (result, message, response) = await _playersService.GetTournamentPlayers();
@@ -26,7 +33,7 @@ namespace ReactApp1.Server.Controllers
             return response;
         }
 
-        [HttpPost("PostTournamentPlayersStats")]
+        [HttpPost("post-tournament-players-stats")]
         public async Task<IActionResult> PostTournamentPlayersStats([FromBody] string tournamentLink)
         {
             var (result, message, response) = await _playersService.PostTournamentPlayersStats(tournamentLink);
@@ -34,7 +41,7 @@ namespace ReactApp1.Server.Controllers
             return Ok($"Для турнира {tournamentLink} было обработано {response.Count} игроков");
         }
 
-        [HttpPost("PostTournamentsPlayersStats")]
+        [HttpPost("post-tournaments-players-stats")]
         public async Task<IActionResult> PostTournamentsPlayersStats([FromBody] PostTournamentsPlayersStatsRequest request)
         {
             var startDay = request.startDay ?? _hangfireSettings.PostTournamentsPlayersStatsStartDay;

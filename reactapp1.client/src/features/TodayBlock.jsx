@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import StatCard from '../components/StatCard.jsx';
-import { getAllPlayers, getTournamentsCount } from '../api.js';
+import { getPlayersCount, getTournamentsCount } from '../api.js';
 
 export default function TodayBlock({ toast }) {
   const [players, setPlayers] = useState(null);
@@ -13,10 +13,10 @@ export default function TodayBlock({ toast }) {
     else setLoading(true);
     try {
       const [pData, tData] = await Promise.all([
-        getAllPlayers(),
+        getPlayersCount(),
         getTournamentsCount(),
       ]);
-      setPlayers(Array.isArray(pData) ? pData.length : pData.count);
+      setPlayers(pData.count);
       setTournaments(tData.count);
       if (isRefresh) toast.add('Статистика обновлена', 'success');
     } catch {

@@ -18,6 +18,12 @@ namespace ReactApp1.Server.Repositories
             _logger = logger;
         }
 
+        public async Task<int> CountPlayers()
+        {
+            using var context = _dbContextFactory.CreateDbContext();
+            return await context.PlayerStats.Select(e => e.PlayerId).Distinct().CountAsync();
+        }
+
         public async Task<(MethodResult, string, List<PlayerStats>?)> GetTournamentPlayersStats()
         {
             using var context = _dbContextFactory.CreateDbContext();

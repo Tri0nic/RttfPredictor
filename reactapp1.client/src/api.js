@@ -13,8 +13,8 @@ async function request(url, opts = {}) {
   return data;
 }
 
-export function getAllPlayers() {
-  return request('/api/Players/AllPlayers');
+export function getPlayersCount() {
+  return request('/api/players/count');
 }
 
 export function getTournamentsCount() {
@@ -22,7 +22,7 @@ export function getTournamentsCount() {
 }
 
 export function postTournamentPlayersStats(tournamentLink) {
-  return request('/api/Players/PostTournamentPlayersStats', {
+  return request('/api/players/post-tournament-players-stats', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tournamentLink }),

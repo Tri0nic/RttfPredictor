@@ -19,6 +19,11 @@ namespace ReactApp1.Server.Services
             _logger = logger;
         }
 
+        public async Task<int> CountPlayers()
+        {
+            return await _playerRepository.CountPlayers();
+        }
+
         public async Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayers()
         {
             var (result, message, response) = await _playerRepository.GetTournamentPlayersStats();

@@ -30,6 +30,7 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddTransient<IPlayerService, PlayerService>();
+builder.Services.AddTransient<ITournamentService, TournamentService>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddTransient<IPredictionService, PredictionService>();
 builder.Services.AddScoped<IMLModelRepository, MLModelRepository>();
