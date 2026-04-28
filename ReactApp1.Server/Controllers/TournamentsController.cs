@@ -17,8 +17,7 @@ namespace ReactApp1.Server.Controllers
         [HttpGet("count")]
         public async Task<IActionResult> CountTournaments()
         {
-            var count = await _tournamentService.CountTournaments();
-            return Ok(new { count });
+            return Ok(await _tournamentService.CountTournaments());
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using ReactApp1.Server.DTO;
+﻿using ReactApp1.Server.DTO;
 using ReactApp1.Server.Enums;
 
 namespace ReactApp1.Server.Interfaces
@@ -9,7 +8,8 @@ namespace ReactApp1.Server.Interfaces
         Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayersStats();
         Task<PlayerStats?> GetLatestPlayerStats(long playerId);
         Task<List<PlayerStats>> GetPlayersByTournamentId(long tournamentId);
-        Task<int> CountPlayers();
+        Task<CountStatsDto> CountPlayers();
+        Task<CountStatsDto> CountPlayerStats();
         Task<bool> TournamentExists(long tournamentId);
         Task<(MethodResult, string)> UpsertTournament(long tournamentId, DateTime? startsAt);
         Task<(MethodResult, string)> SaveNotStartedTournamentPlayersStats(List<PlayerStats> playersAfterTournaments);

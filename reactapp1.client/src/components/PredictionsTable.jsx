@@ -1,10 +1,3 @@
-function confidenceColor(v) {
-  if (v >= 0.8) return '#00c896';
-  if (v >= 0.6) return '#0090ff';
-  if (v >= 0.4) return '#f59e0b';
-  return '#ff4d6a';
-}
-
 export default function PredictionsTable({ data }) {
   if (!data || data.length === 0) {
     return (
@@ -15,28 +8,37 @@ export default function PredictionsTable({ data }) {
     );
   }
 
+  const minScore = Math.min(...data.map(r => r.score));
+  const maxScore = Math.max(...data.map(r => r.score));
+  const scoreRange = maxScore - minScore || 1;
+
   return (
     <table className="results-table">
       <thead>
         <tr>
           <th>#</th>
           <th>Игрок</th>
-          <th>Уверенность</th>
+          <th>Рейтинг</th>
+          <th>Score</th>
         </tr>
       </thead>
       <tbody>
         {data.map((row) => {
-          const rankClass = row.predictedPlace <= 3
-            ? `rank-${row.predictedPlace}`
+          const rankClass = row.predictedPosition <= 3
+            ? `rank-${row.predictedPosition}`
             : 'rank-other';
+          const normalised = (row.score - minScore) / scoreRange;
           return (
             <tr key={row.playerId}>
               <td>
-                <span className={`rank-badge ${rankClass}`}>{row.predictedPlace}</span>
+                <span className={`rank-badge ${rankClass}`}>{row.predictedPosition}</span>
               </td>
               <td>
-                <div className="player-name">{row.name}</div>
-                <div className="player-rating">RTTF {row.rating}</div>
+                <div className="player-name">{row.playerName}</div>
+                <div className="player-rating" style={{ color: 'var(--muted)' }}>{row.playerId}</div>
+              </td>
+              <td>
+                <div className="player-rating">{row.rating}</div>
               </td>
               <td>
                 <div className="confidence-bar-wrap">
@@ -44,13 +46,13 @@ export default function PredictionsTable({ data }) {
                     <div
                       className="confidence-fill"
                       style={{
-                        width: `${Math.round(row.confidence * 100)}%`,
-                        background: confidenceColor(row.confidence),
+                        width: `${Math.round((1 - normalised) * 100)}%`,
+                        background: `hsl(${Math.round((1 - normalised) * 120)}, 70%, 50%)`,
                       }}
                     ></div>
                   </div>
                   <span className="confidence-value">
-                    {Math.round(row.confidence * 100)}%
+                    {row.score.toFixed(2)}
                   </span>
                 </div>
               </td>

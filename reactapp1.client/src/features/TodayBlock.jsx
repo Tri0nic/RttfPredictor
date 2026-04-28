@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import StatCard from '../components/StatCard.jsx';
-import { getPlayersCount, getTournamentsCount } from '../api.js';
+import { getPlayersCount, getPlayerStatsCount, getTournamentsCount } from '../api.js';
 
 export default function TodayBlock({ toast }) {
   const [players, setPlayers] = useState(null);
+  const [playerStats, setPlayerStats] = useState(null);
   const [tournaments, setTournaments] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -12,12 +13,14 @@ export default function TodayBlock({ toast }) {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const [pData, tData] = await Promise.all([
+      const [pData, psData, tData] = await Promise.all([
         getPlayersCount(),
+        getPlayerStatsCount(),
         getTournamentsCount(),
       ]);
-      setPlayers(pData.count);
-      setTournaments(tData.count);
+      setPlayers(pData);
+      setPlayerStats(psData);
+      setTournaments(tData);
       if (isRefresh) toast.add('Статистика обновлена', 'success');
     } catch {
       if (isRefresh) toast.add('Ошибка обновления', 'error');
@@ -25,7 +28,7 @@ export default function TodayBlock({ toast }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [toast]);
+  }, [toast.add]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -45,24 +48,34 @@ export default function TodayBlock({ toast }) {
 
       <div className="card">
         <StatCard
-          label="Игроков в базе"
-          value={players}
+          label="Записей в базе"
+          value={playerStats?.count}
           color="green"
-          sublabel={players != null ? '+12 за последние 7 дней' : ''}
+          delta24h={playerStats?.last24h}
+          delta7d={playerStats?.last7d}
+          loading={loading}
+        />
+        <div className="stat-divider"></div>
+        <StatCard
+          label="Игроков в базе"
+          value={players?.count}
+          color="green"
+          delta24h={players?.last24h}
+          delta7d={players?.last7d}
           loading={loading}
         />
         <div className="stat-divider"></div>
         <StatCard
           label="Турниров обработано"
-          value={tournaments}
+          value={tournaments?.count}
           color="blue"
-          sublabel={
-            tournaments != null
-              ? `актуально на ${new Date().toLocaleDateString('ru')}`
-              : ''
-          }
+          delta24h={tournaments?.last24h}
+          delta7d={tournaments?.last7d}
           loading={loading}
         />
+        <div className="stat-updated">
+          актуально на {new Date().toLocaleDateString('ru')}
+        </div>
       </div>
     </div>
   );

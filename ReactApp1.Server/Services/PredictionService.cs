@@ -53,13 +53,19 @@ namespace ReactApp1.Server.Services
             });
         }
 
-        public async Task<(MethodResult, string, List<TournamentPredictionItem>?)> GetTournamentPredictions(long tournamentId)
+        public async Task<(MethodResult, string, TournamentPredictionsResponse?)> GetTournamentPredictions(long tournamentId)
         {
             var players = await _playerRepository.GetPlayersByTournamentId(tournamentId);
             if (players.Count == 0)
                 return (MethodResult.NotFound, $"Турнир {tournamentId} не найден или нет игроков", null);
 
             var raw = new List<(PlayerStats Player, double Score, DateTime PredictedAt, string ModelVersion)>();
+
+            var avgTournamentRating = players
+                .Where(p => p.Rating.HasValue)
+                .Select(p => (double)p.Rating!.Value)
+                .DefaultIfEmpty(0)
+                .Average();
 
             foreach (var player in players)
             {
@@ -73,6 +79,7 @@ namespace ReactApp1.Server.Services
                     TournamentsPlayed = player.TournamentsPlayed,
                     WonGames = player.WonGames,
                     LostGames = player.LostGames,
+                    AvgTournamentRating = avgTournamentRating > 0 ? avgTournamentRating : null,
                 };
 
                 var (result, _, pythonResult) = await _mlModelRepository.PredictAsync(request);
@@ -82,7 +89,7 @@ namespace ReactApp1.Server.Services
 
             var ranked = raw
                 .OrderBy(x => x.Score)
-                .Select((x, index) => new { x.Player, x.PredictedAt, Rank = index + 1, x.ModelVersion })
+                .Select((x, index) => new { x.Player, x.Score, x.PredictedAt, Rank = index + 1, x.ModelVersion })
                 .ToList();
 
             foreach (var item in ranked)
@@ -90,16 +97,26 @@ namespace ReactApp1.Server.Services
                     item.Player.PlayerId, item.Player.TournamentId,
                     item.Rank, item.ModelVersion);
 
-            var results = ranked.Select(x => new TournamentPredictionItem
+            var resultItems = ranked.Select(x => new TournamentPredictionItem
             {
                 PlayerId = x.Player.PlayerId,
                 PlayerName = x.Player.Name,
                 Rating = x.Player.Rating,
                 PredictedPosition = x.Rank,
+                Score = x.Score,
                 PredictedAt = x.PredictedAt,
             }).ToList();
 
-            return (MethodResult.Success, "", results);
+            var withRating = players.Where(p => p.Rating.HasValue).ToList();
+            var response = new TournamentPredictionsResponse
+            {
+                PlayerCount = resultItems.Count,
+                AvgRating = withRating.Any() ? Math.Round(withRating.Average(p => (double)p.Rating!.Value), 1) : 0,
+                TotalRating = withRating.Sum(p => p.Rating!.Value),
+                Players = resultItems,
+            };
+
+            return (MethodResult.Success, "", response);
         }
     }
 }

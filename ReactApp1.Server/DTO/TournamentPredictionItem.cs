@@ -6,6 +6,7 @@ namespace ReactApp1.Server.DTO
         public string? PlayerName { get; set; }
         public int? Rating { get; set; }
         public int PredictedPosition { get; set; }
+        public double Score { get; set; }
         public DateTime PredictedAt { get; set; }
     }
 }

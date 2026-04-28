@@ -18,10 +18,32 @@ namespace ReactApp1.Server.Repositories
             _logger = logger;
         }
 
-        public async Task<int> CountPlayers()
+        public async Task<CountStatsDto> CountPlayers()
         {
             using var context = _dbContextFactory.CreateDbContext();
-            return await context.PlayerStats.Select(e => e.PlayerId).Distinct().CountAsync();
+            var now = DateTime.UtcNow;
+            var h24 = now.AddHours(-24);
+            var d7 = now.AddDays(-7);
+
+            var all = await context.PlayerStats.Select(e => e.PlayerId).Distinct().CountAsync();
+            var last24h = await context.PlayerStats.Where(e => e.CreatedAt >= h24).Select(e => e.PlayerId).Distinct().CountAsync();
+            var last7d = await context.PlayerStats.Where(e => e.CreatedAt >= d7).Select(e => e.PlayerId).Distinct().CountAsync();
+
+            return new CountStatsDto(all, last24h, last7d);
+        }
+
+        public async Task<CountStatsDto> CountPlayerStats()
+        {
+            using var context = _dbContextFactory.CreateDbContext();
+            var now = DateTime.UtcNow;
+            var h24 = now.AddHours(-24);
+            var d7 = now.AddDays(-7);
+
+            var all = await context.PlayerStats.CountAsync();
+            var last24h = await context.PlayerStats.Where(e => e.CreatedAt >= h24).CountAsync();
+            var last7d = await context.PlayerStats.Where(e => e.CreatedAt >= d7).CountAsync();
+
+            return new CountStatsDto(all, last24h, last7d);
         }
 
         public async Task<(MethodResult, string, List<PlayerStats>?)> GetTournamentPlayersStats()

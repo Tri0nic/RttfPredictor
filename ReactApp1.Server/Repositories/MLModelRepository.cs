@@ -40,5 +40,13 @@ namespace ReactApp1.Server.Repositories
 
             return (MethodResult.Success, "", response.Content);
         }
+
+        public async Task<(MethodResult, string, Dictionary<string, double>?)> GetFeatureImportanceAsync()
+        {
+            var response = await _mlModel.GetFeatureImportanceAsync();
+            if (!response.IsSuccessStatusCode)
+                return (MethodResult.InternalError, $"ML сервис вернул ошибку: {response.Error?.Message}", null);
+            return (MethodResult.Success, "", response.Content);
+        }
     }
 }

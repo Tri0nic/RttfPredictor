@@ -30,11 +30,12 @@ function StatSkeleton() {
       <div className="skeleton skel-lbl"></div>
       <div className="skeleton skel-num"></div>
       <div className="skeleton skel-dlt"></div>
+      <div className="skeleton skel-dlt"></div>
     </div>
   );
 }
 
-export default function StatCard({ label, value, color, sublabel, loading }) {
+export default function StatCard({ label, value, color, delta24h, delta7d, loading }) {
   return (
     <div>
       {loading ? (
@@ -48,7 +49,14 @@ export default function StatCard({ label, value, color, sublabel, loading }) {
           <div className={`stat-number ${color}`}>
             <AnimatedNumber value={value} />
           </div>
-          <div className="stat-delta">{sublabel}</div>
+          <div className="stat-deltas">
+            {delta7d != null && (
+              <div className="stat-delta">+{delta7d.toLocaleString('ru')} за 7 дней</div>
+            )}
+            {delta24h != null && (
+              <div className="stat-delta">+{delta24h.toLocaleString('ru')} за 24 ч</div>
+            )}
+          </div>
         </>
       )}
     </div>

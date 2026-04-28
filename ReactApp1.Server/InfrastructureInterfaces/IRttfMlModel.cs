@@ -7,5 +7,8 @@ namespace ReactApp1.Server.InfrastructureInterfaces
     {
         [Post("/predict")]
         Task<IApiResponse<PythonPredictResponse>> PredictAsync([Body] PythonPredictRequest request);
+
+        [Get("/feature-importance")]
+        Task<IApiResponse<Dictionary<string, double>>> GetFeatureImportanceAsync();
     }
 }

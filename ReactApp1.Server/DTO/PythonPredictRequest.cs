@@ -27,5 +27,8 @@ namespace ReactApp1.Server.DTO
 
         [JsonPropertyName("lost_games")]
         public int? LostGames { get; set; }
+
+        [JsonPropertyName("avg_tournament_rating")]
+        public double? AvgTournamentRating { get; set; }
     }
 }

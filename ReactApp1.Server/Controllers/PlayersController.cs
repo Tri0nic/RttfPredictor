@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ReactApp1.Server.DTO;
 using ReactApp1.Server.Interfaces;
@@ -21,8 +21,13 @@ namespace ReactApp1.Server.Controllers
         [HttpGet("count")]
         public async Task<IActionResult> CountPlayers()
         {
-            var count = await _playersService.CountPlayers();
-            return Ok(new { count });
+            return Ok(await _playersService.CountPlayers());
+        }
+
+        [HttpGet("stats-count")]
+        public async Task<IActionResult> CountPlayerStats()
+        {
+            return Ok(await _playersService.CountPlayerStats());
         }
 
         [HttpGet("all-players")]
@@ -34,11 +39,11 @@ namespace ReactApp1.Server.Controllers
         }
 
         [HttpPost("post-tournament-players-stats")]
-        public async Task<IActionResult> PostTournamentPlayersStats([FromBody] string tournamentLink)
+        public async Task<IActionResult> PostTournamentPlayersStats([FromBody] PostTournamentRequest request)
         {
-            var (result, message, response) = await _playersService.PostTournamentPlayersStats(tournamentLink);
-
-            return Ok($"Для турнира {tournamentLink} было обработано {response.Count} игроков");
+            var (result, message, response) = await _playersService.PostTournamentPlayersStats(request.TournamentId);
+            var count = response?.Count ?? 0;
+            return Ok(new { count, message = $"Для турнира {request.TournamentId} было обработано {count} игроков" });
         }
 
         [HttpPost("post-tournaments-players-stats")]

@@ -5,7 +5,8 @@ namespace ReactApp1.Server.Interfaces
 {
     public interface IPlayerService
     {
-        Task<int> CountPlayers();
+        Task<CountStatsDto> CountPlayers();
+        Task<CountStatsDto> CountPlayerStats();
         Task<(MethodResult, string, List<PlayerStats>)> GetTournamentPlayers();
         Task<(MethodResult, string, List<PlayerStats>)> PostTournamentPlayersStats(string tournamentLink);
         Task<(MethodResult, string, Dictionary<string, Dictionary<long, List<PlayerStats>>>)> PostTournamentsPlayersStatsNearbyDays(int startDay, int endDay);

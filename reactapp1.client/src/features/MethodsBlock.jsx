@@ -3,22 +3,22 @@ import PredictionsTable from '../components/PredictionsTable.jsx';
 import { postTournamentPlayersStats, getTournamentPredictions } from '../api.js';
 
 export default function MethodsBlock({ toast }) {
-  const [link, setLink] = useState('');
+  const [loadId, setLoadId] = useState('');
   const [tournId, setTournId] = useState('');
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [loadingPred, setLoadingPred] = useState(false);
-  const [predictions, setPredictions] = useState(null);
+  const [predResult, setPredResult] = useState(null);
 
   const handleLoadPlayers = async () => {
-    if (!link.trim()) {
-      toast.add('Введите ссылку на турнир', 'error');
+    if (!loadId.trim()) {
+      toast.add('Введите ID турнира', 'error');
       return;
     }
     setLoadingPlayers(true);
     try {
-      const data = await postTournamentPlayersStats(link.trim());
+      const data = await postTournamentPlayersStats(loadId.trim());
       toast.add(`Загружено ${data.count} игроков турнира`, 'success');
-      setLink('');
+      setLoadId('');
     } catch (e) {
       toast.add(e.message || 'Не удалось загрузить игроков', 'error');
     } finally {
@@ -32,10 +32,10 @@ export default function MethodsBlock({ toast }) {
       return;
     }
     setLoadingPred(true);
-    setPredictions(null);
+    setPredResult(null);
     try {
       const data = await getTournamentPredictions(tournId.trim());
-      setPredictions(data);
+      setPredResult(data);
       toast.add('Предсказание готово', 'success');
     } catch (e) {
       toast.add(e.message || 'Ошибка предсказания', 'error');
@@ -53,16 +53,15 @@ export default function MethodsBlock({ toast }) {
         <div className="method-block green">
           <div className="method-title">Загрузить игроков турнира</div>
           <div className="method-desc">
-            Укажите ссылку на страницу турнира RTTF — система загрузит список
-            участников и их статистику.
+            Введите ID турнира RTTF — система загрузит список участников и их статистику.
           </div>
           <div className="input-row">
             <input
               className="input-field"
-              type="url"
-              placeholder="https://rttf.ru/tournaments/12345"
-              value={link}
-              onChange={e => setLink(e.target.value)}
+              type="text"
+              placeholder="ID турнира, например 12345"
+              value={loadId}
+              onChange={e => setLoadId(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLoadPlayers()}
             />
           </div>
@@ -81,8 +80,7 @@ export default function MethodsBlock({ toast }) {
         <div className="method-block blue">
           <div className="method-title">Предсказать места на турнире</div>
           <div className="method-desc">
-            Введите ID турнира — модель выдаст прогноз мест с оценкой
-            уверенности для каждого участника.
+            Введите ID турнира — модель выдаст прогноз мест для каждого участника.
           </div>
           <div className="input-row">
             <input
@@ -120,8 +118,17 @@ export default function MethodsBlock({ toast }) {
                   </div>
                 ))}
               </div>
+            ) : predResult ? (
+              <>
+                <div className="tourn-summary">
+                  <span>Игроков: <b>{predResult.playerCount}</b></span>
+                  <span>Средний рейтинг: <b>{predResult.avgRating}</b></span>
+                  <span>Суммарный рейтинг: <b>{predResult.totalRating}</b></span>
+                </div>
+                <PredictionsTable data={predResult.players} />
+              </>
             ) : (
-              <PredictionsTable data={predictions} />
+              <PredictionsTable data={null} />
             )}
           </div>
         </div>
